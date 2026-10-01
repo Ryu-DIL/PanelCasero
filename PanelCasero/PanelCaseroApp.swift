@@ -14,6 +14,7 @@ struct PanelCaseroApp: App {
                     // La pantalla nunca se apaga sola.
                     UIApplication.shared.isIdleTimerDisabled = true
                     BrightnessController.shared.start()
+                    TouchWatcher.install()
                 }
         }
         .onChange(of: scenePhase) { phase in

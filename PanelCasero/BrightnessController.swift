@@ -96,12 +96,52 @@ final class BrightnessController {
     }
 }
 
-extension View {
-    /// Avisa al controlador de brillo cada vez que se toca la pantalla.
-    func trackTouches() -> some View {
-        simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in BrightnessController.shared.touched() }
-        )
+/// Observa todos los toques de la ventana (también los de las ventanas
+/// emergentes) sin interferir con ellos: no cancela ni retrasa ningún toque.
+final class TouchWatcher: UIGestureRecognizer, UIGestureRecognizerDelegate {
+    private static var installed = false
+
+    /// Se engancha a la ventana principal (se reintenta hasta que exista).
+    static func install() {
+        guard !installed else { return }
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })
+        guard let window = window else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { install() }
+            return
+        }
+        window.addGestureRecognizer(TouchWatcher(target: nil, action: nil))
+        installed = true
+    }
+
+    override init(target: Any?, action: Selector?) {
+        super.init(target: target, action: action)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+        delegate = self
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        true
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        BrightnessController.shared.touched()
+    }
+
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent) {
+        BrightnessController.shared.touched()
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        state = .failed
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        state = .failed
     }
 }
