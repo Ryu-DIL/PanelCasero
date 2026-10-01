@@ -1,0 +1,35 @@
+name: PanelCasero
+options:
+  bundleIdPrefix: org.panelcasero
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  PanelCasero:
+    type: application
+    platform: iOS
+    sources:
+      - PanelCasero
+    info:
+      path: PanelCasero/Info.plist
+      properties:
+        CFBundleDisplayName: PanelCasero
+        UILaunchScreen: {}
+        UIStatusBarHidden: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+          - UIInterfaceOrientationPortrait
+        NSCameraUsageDescription: PanelCasero usa la camara para detectar movimiento y vigilar la habitacion.
+        NSLocalNetworkUsageDescription: PanelCasero se conecta a tu red local para controlar las luces y enviar eventos al servidor.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.panelcasero.app
+        PRODUCT_NAME: PanelCasero

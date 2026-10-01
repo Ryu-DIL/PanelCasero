@@ -1,0 +1,11 @@
+# Generado por XcodeGen en cada compilacion
+*.xcodeproj
+PanelCasero/Info.plist
+
+# Compilacion
+build/
+DerivedData/
+Payload/
+*.ipa
+
+.DS_Store

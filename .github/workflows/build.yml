@@ -1,0 +1,45 @@
+name: Compilar IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Instalar XcodeGen
+        run: brew install xcodegen
+
+      - name: Generar el proyecto de Xcode
+        run: xcodegen generate
+
+      - name: Compilar sin firmar
+        run: |
+          xcodebuild \
+            -project PanelCasero.xcodeproj \
+            -scheme PanelCasero \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Empaquetar el IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/PanelCasero.app Payload/
+          zip -r PanelCasero.ipa Payload
+
+      - name: Subir el IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PanelCasero-ipa
+          path: PanelCasero.ipa
