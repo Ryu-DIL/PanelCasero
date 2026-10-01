@@ -33,6 +33,7 @@ struct LightsPanel: View {
             LightDetailPlaceholder(name: item.name)
                 .environmentObject(settings)
                 .preferredColorScheme(settings.colorScheme)
+                .trackTouches()
         }
     }
 }

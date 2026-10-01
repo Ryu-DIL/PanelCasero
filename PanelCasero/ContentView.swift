@@ -17,10 +17,12 @@ struct ContentView: View {
             }
         }
         .statusBarHidden(true)
+        .trackTouches()
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(settings)
                 .preferredColorScheme(settings.colorScheme)
+                .trackTouches()
         }
     }
 

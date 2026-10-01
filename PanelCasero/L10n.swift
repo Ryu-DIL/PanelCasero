@@ -22,6 +22,8 @@ enum L10n {
         "on":            ["es": "Encendida", "ca": "Encesa", "en": "On", "de": "An"],
         "off":           ["es": "Apagada", "ca": "Apagada", "en": "Off", "de": "Aus"],
         "color_bright":  ["es": "Color y brillo", "ca": "Color i brillantor", "en": "Color and brightness", "de": "Farbe und Helligkeit"],
+        "test_section":  ["es": "Pruebas (se quitará)", "ca": "Proves (s'eliminarà)", "en": "Tests (will be removed)", "de": "Tests (wird entfernt)"],
+        "simulate_motion": ["es": "Simular movimiento", "ca": "Simular moviment", "en": "Simulate motion", "de": "Bewegung simulieren"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

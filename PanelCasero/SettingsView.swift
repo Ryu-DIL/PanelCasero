@@ -30,6 +30,11 @@ struct SettingsView: View {
                         }
                     }
                 }
+                Section(header: Text(settings.t("test_section"))) {
+                    Button(settings.t("simulate_motion")) {
+                        BrightnessController.shared.motionDetected()
+                    }
+                }
             }
             .navigationTitle(settings.t("settings"))
             .navigationBarTitleDisplayMode(.inline)
