@@ -1,0 +1,22 @@
+{
+  "lights": [
+    {
+      "id": "tira",
+      "name": "Tira LED",
+      "kind": "strip",
+      "tuya_id": "ID_DE_LA_TIRA",
+      "ip": "192.168.1.179",
+      "local_key": "CLAVE_LOCAL_DE_LA_TIRA",
+      "version": 3.5
+    },
+    {
+      "id": "bombilla",
+      "name": "Bombilla",
+      "kind": "bulb",
+      "tuya_id": "ID_DE_LA_BOMBILLA",
+      "ip": "192.168.1.133",
+      "local_key": "CLAVE_LOCAL_DE_LA_BOMBILLA",
+      "version": 3.4
+    }
+  ]
+}

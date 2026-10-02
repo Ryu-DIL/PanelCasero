@@ -9,3 +9,9 @@ Payload/
 *.ipa
 
 .DS_Store
+
+# Servidor: claves y configuración privada (nunca al repositorio)
+server/.env
+server/config/devices.json
+__pycache__/
+.pytest_cache/

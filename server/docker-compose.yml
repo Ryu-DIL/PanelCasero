@@ -1,0 +1,12 @@
+services:
+  panelcasero:
+    build: .
+    container_name: panelcasero
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    volumes:
+      - ./config:/config:ro
+    mem_limit: 256m
