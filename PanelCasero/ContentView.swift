@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
+    @EnvironmentObject var store: LightsStore
+    @EnvironmentObject var favorites: FavoritesStore
     @State private var showSettings = false
 
     var body: some View {
@@ -20,6 +22,8 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
                 .environmentObject(settings)
+                .environmentObject(store)
+                .environmentObject(favorites)
                 .preferredColorScheme(settings.colorScheme)
         }
     }

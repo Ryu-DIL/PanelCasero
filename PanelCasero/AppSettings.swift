@@ -23,8 +23,18 @@ enum AppAppearance: String, CaseIterable, Identifiable {
 }
 
 final class AppSettings: ObservableObject {
+    /// Identificadores de las luces tal y como las conoce el servidor.
+    static let lightIDs = ["bombilla", "tira"]
+    /// Iconos entre los que se puede elegir para cada luz.
+    static let iconChoices = ["lightbulb.fill", "wand.and.rays", "sparkles",
+                              "moon.stars.fill", "sun.max.fill", "flame.fill"]
+
     private static let languageKey = "language"
     private static let appearanceKey = "appearance"
+    private static let serverURLKey = "serverURL"
+    private static let serverTokenKey = "serverToken"
+    private static let lightNamesKey = "lightNames"
+    private static let lightIconsKey = "lightIcons"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -34,10 +44,32 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Self.appearanceKey) }
     }
 
+    /// Dirección del servidor, por ejemplo 192.168.1.200:8090
+    @Published var serverURL: String {
+        didSet { UserDefaults.standard.set(serverURL, forKey: Self.serverURLKey) }
+    }
+
+    /// Clave compartida con el servidor.
+    @Published var serverToken: String {
+        didSet { UserDefaults.standard.set(serverToken, forKey: Self.serverTokenKey) }
+    }
+
+    @Published var lightNames: [String: String] {
+        didSet { UserDefaults.standard.set(lightNames, forKey: Self.lightNamesKey) }
+    }
+
+    @Published var lightIcons: [String: String] {
+        didSet { UserDefaults.standard.set(lightIcons, forKey: Self.lightIconsKey) }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         language = AppLanguage(rawValue: defaults.string(forKey: Self.languageKey) ?? "") ?? .es
         appearance = AppAppearance(rawValue: defaults.string(forKey: Self.appearanceKey) ?? "") ?? .dark
+        serverURL = defaults.string(forKey: Self.serverURLKey) ?? ""
+        serverToken = defaults.string(forKey: Self.serverTokenKey) ?? ""
+        lightNames = (defaults.dictionary(forKey: Self.lightNamesKey) as? [String: String]) ?? [:]
+        lightIcons = (defaults.dictionary(forKey: Self.lightIconsKey) as? [String: String]) ?? [:]
     }
 
     var colorScheme: ColorScheme {
@@ -47,5 +79,23 @@ final class AppSettings: ObservableObject {
     /// Texto traducido al idioma elegido en la app.
     func t(_ key: String) -> String {
         L10n.string(key, language: language)
+    }
+
+    /// Nombre de la luz: el personalizado o, si no hay, el de por defecto.
+    func defaultLightName(_ id: String) -> String {
+        t(id == "tira" ? "strip" : "bulb")
+    }
+
+    func lightName(_ id: String) -> String {
+        let custom = (lightNames[id] ?? "").trimmingCharacters(in: .whitespaces)
+        return custom.isEmpty ? defaultLightName(id) : custom
+    }
+
+    func defaultLightIcon(_ id: String) -> String {
+        id == "tira" ? "wand.and.rays" : "lightbulb.fill"
+    }
+
+    func lightIcon(_ id: String) -> String {
+        lightIcons[id] ?? defaultLightIcon(id)
     }
 }
