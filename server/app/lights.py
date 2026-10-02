@@ -6,11 +6,20 @@ otras apps (Tuya, Alexa...).
 """
 import json
 import logging
+import os
 import threading
+import time
 
 import tinytuya
 
 log = logging.getLogger("panelcasero.lights")
+
+# Las luces Tuya aceptan pocas conexiones locales a la vez (la app de Tuya en
+# el móvil puede ocupar el hueco). Por eso se reintenta y solo se marca una
+# luz como "sin conexión" tras varios fallos seguidos.
+RETRY_DELAY = 0.7        # segundos entre reintentos
+TRIES = 3                # intentos por lectura o comando
+FAILS_BEFORE_OFFLINE = 3  # lecturas fallidas seguidas antes de marcar offline
 
 
 class LightError(Exception):
@@ -46,8 +55,10 @@ class Light:
         self._factory = device_factory
         self._dev = None
         self.lock = threading.Lock()
+        self._fails = 0
         self.state = {
             "online": False,
+            "error": None,
             "on": False,
             "mode": None,
             "brightness": 100.0,
@@ -73,17 +84,41 @@ class Light:
         finally:
             self.lock.release()
 
+    def _read_state(self):
+        last = None
+        for attempt in range(TRIES):
+            try:
+                dev = self._device()
+                raw = dev.state()
+                if not isinstance(raw, dict) or _is_error(raw):
+                    raise LightError(str(raw))
+                return dev, raw
+            except Exception as exc:  # noqa: BLE001
+                last = exc
+                self._dev = None  # se vuelve a crear la conexión
+                if attempt < TRIES - 1:
+                    time.sleep(RETRY_DELAY)
+        raise LightError(str(last))
+
     def _refresh_locked(self):
         try:
-            dev = self._device()
-            raw = dev.state()
-            if not isinstance(raw, dict) or _is_error(raw):
-                raise LightError(str(raw))
-            self.state = self._parse(dev, raw)
-        except Exception as exc:  # noqa: BLE001 - cualquier fallo = luz sin conexión
-            if self.state.get("online"):
-                log.warning("%s sin conexión: %s", self.id, exc)
-            self.state = {**self.state, "online": False}
+            dev, raw = self._read_state()
+            new = self._parse(dev, raw)
+        except Exception as exc:  # noqa: BLE001
+            self._fails += 1
+            self.state = {**self.state, "error": str(exc)[:200]}
+            if self._fails == 1:
+                log.warning("%s: fallo al leer el estado (%s)", self.id, exc)
+            if self._fails >= FAILS_BEFORE_OFFLINE and self.state.get("online"):
+                log.warning("%s sin conexión tras %d fallos seguidos", self.id, self._fails)
+            if self._fails >= FAILS_BEFORE_OFFLINE:
+                self.state = {**self.state, "online": False}
+            return
+        if self._fails:
+            log.info("%s recuperada tras %d fallos", self.id, self._fails)
+        self._fails = 0
+        new["error"] = None
+        self.state = new
 
     def _parse(self, dev, raw):
         has_colour = dev.bulb_has_capability("colour")
@@ -123,14 +158,24 @@ class Light:
     # ---------- escritura ----------
     def _command(self, action, update):
         with self.lock:
-            try:
-                result = action(self._device())
-                if _is_error(result):
-                    raise LightError(str(result))
-            except Exception as exc:  # noqa: BLE001
-                self.state = {**self.state, "online": False}
-                raise LightError(str(exc)) from exc
-            self.state = {**self.state, "online": True, **update}
+            last = None
+            for attempt in range(TRIES):
+                try:
+                    result = action(self._device())
+                    if _is_error(result):
+                        raise LightError(str(result))
+                    last = None
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    last = exc
+                    self._dev = None
+                    if attempt < TRIES - 1:
+                        time.sleep(RETRY_DELAY)
+            if last is not None:
+                self.state = {**self.state, "online": False, "error": str(last)[:200]}
+                raise LightError(str(last)) from last
+            self._fails = 0
+            self.state = {**self.state, "online": True, "error": None, **update}
 
     def set_power(self, on):
         self._command(lambda d: d.turn_on() if on else d.turn_off(), {"on": bool(on)})
@@ -171,8 +216,10 @@ class Light:
 
 
 class LightManager:
-    def __init__(self, lights, interval=5.0):
+    def __init__(self, lights, interval=None):
         self.lights = {light.id: light for light in lights}
+        if interval is None:
+            interval = float(os.environ.get("PANEL_POLL_SECONDS", "10"))
         self.interval = interval
         self._stop = threading.Event()
         self._thread = None

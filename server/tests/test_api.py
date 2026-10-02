@@ -4,10 +4,12 @@ os.environ["PANEL_TOKEN"] = "secreto-de-prueba"
 
 from fastapi.testclient import TestClient
 
+import app.lights as lights_module
 from app.lights import Light, LightManager
 from app.main import create_app
 
 AUTH = {"Authorization": "Bearer secreto-de-prueba"}
+lights_module.RETRY_DELAY = 0  # los tests no esperan entre reintentos
 
 
 class FakeBulb:
@@ -143,3 +145,48 @@ def test_bulb_without_color_rejects_color():
         r = client.post("/api/lights/tira/color",
                         json={"hue": 120, "saturation": 100, "brightness": 40}, headers=AUTH)
         assert r.status_code == 400
+
+
+class FlakyBulb(FakeBulb):
+    """Falla las primeras lecturas, como una luz con la conexión ocupada.
+
+    El contador está fuera del objeto porque el servidor recrea la conexión
+    tras cada fallo."""
+
+    def __init__(self, cfg, budget):
+        super().__init__(cfg)
+        self.budget = budget
+
+    def state(self):
+        if self.budget["failures"] > 0:
+            self.budget["failures"] -= 1
+            return {"Error": "Invalid JSON Response from Device", "Err": "900"}
+        return super().state()
+
+
+def make_flaky(failures):
+    budget = {"failures": failures}
+    cfg = {"id": "tira", "name": "Tira LED", "kind": "strip"}
+    light = Light(cfg, device_factory=lambda c: FlakyBulb(c, budget))
+    return TestClient(create_app(LightManager([light], interval=3600))), light
+
+
+def test_transient_failures_are_retried():
+    client, light = make_flaky(failures=2)  # 3 intentos: los 2 primeros fallan
+    with client:
+        light.refresh()
+        data = client.get("/api/lights", headers=AUTH).json()[0]
+        assert data["online"] is True and data["error"] is None
+
+
+def test_offline_only_after_repeated_failures():
+    client, light = make_flaky(failures=1000)
+    with client:
+        light.refresh()  # fallo 1 (cada refresh agota sus reintentos)
+        light.refresh()  # fallo 2
+        light.state["online"] = True  # simula una luz que estaba conectada
+        assert client.get("/api/lights", headers=AUTH).json()[0]["online"] is True
+        light.refresh()  # fallo 3 -> ahora sí offline
+        data = client.get("/api/lights", headers=AUTH).json()[0]
+        assert data["online"] is False
+        assert "Invalid JSON" in data["error"]
