@@ -9,7 +9,7 @@ Proyecto de código abierto bajo licencia MIT.
 - [x] Fase 0: proyecto base, pantalla horizontal/vertical, reloj, ajustes (tema e idioma) y compilación automática con GitHub Actions
 - [x] Fase 1: brillo automático (mínimo / 40 % con movimiento / máximo al tocar)
 - [x] Fase 2: luces Tuya (tocar = encender/apagar, mantener = color, brillo, blanco y favoritos) — servidor en `server/` y app conectada
-- [ ] Fase 3: cámara y detección de movimiento
+- [x] Fase 3: cámara frontal y detección de movimiento (sensibilidad ajustable; sube el brillo al detectar movimiento)
 - [ ] Fase 4: servidor en casa y web (PWA) con notificaciones y vídeo en directo
 - [ ] Fase 5: alarma con PIN
 - [ ] Fase 6: previsión del tiempo y pulido

@@ -35,6 +35,7 @@ final class AppSettings: ObservableObject {
     private static let serverTokenKey = "serverToken"
     private static let lightNamesKey = "lightNames"
     private static let lightIconsKey = "lightIcons"
+    private static let sensitivityKey = "motionSensitivity"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -54,6 +55,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(serverToken, forKey: Self.serverTokenKey) }
     }
 
+    /// Sensibilidad del detector de movimiento (1...10).
+    @Published var motionSensitivity: Int {
+        didSet { UserDefaults.standard.set(motionSensitivity, forKey: Self.sensitivityKey) }
+    }
+
     @Published var lightNames: [String: String] {
         didSet { UserDefaults.standard.set(lightNames, forKey: Self.lightNamesKey) }
     }
@@ -68,6 +74,8 @@ final class AppSettings: ObservableObject {
         appearance = AppAppearance(rawValue: defaults.string(forKey: Self.appearanceKey) ?? "") ?? .dark
         serverURL = defaults.string(forKey: Self.serverURLKey) ?? ""
         serverToken = defaults.string(forKey: Self.serverTokenKey) ?? ""
+        let savedSensitivity = defaults.integer(forKey: Self.sensitivityKey)
+        motionSensitivity = savedSensitivity == 0 ? 5 : min(10, max(1, savedSensitivity))
         lightNames = (defaults.dictionary(forKey: Self.lightNamesKey) as? [String: String]) ?? [:]
         lightIcons = (defaults.dictionary(forKey: Self.lightIconsKey) as? [String: String]) ?? [:]
     }

@@ -19,7 +19,14 @@ final class BrightnessController {
 
     /// Momento del último cambio de brillo. El detector de movimiento (fase 3)
     /// lo usará para ignorar los fotogramas justo después de un cambio de luz.
-    private(set) var lastChange: Date = .distantPast
+    var lastChange: Date {
+        changeLock.lock()
+        defer { changeLock.unlock() }
+        return changedAt
+    }
+
+    private let changeLock = NSLock()
+    private var changedAt: Date = .distantPast
 
     private var lastMotion: Date = .distantPast
     private var lastTouch: Date = Date()
@@ -83,7 +90,9 @@ final class BrightnessController {
         let level = targetLevel(now: Date())
         guard level != currentLevel else { return }
         currentLevel = level
-        lastChange = Date()
+        changeLock.lock()
+        changedAt = Date()
+        changeLock.unlock()
         UIScreen.main.brightness = level
     }
 

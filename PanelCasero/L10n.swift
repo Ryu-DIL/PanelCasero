@@ -46,6 +46,11 @@ enum L10n {
         "no_server":     ["es": "Sin servidor", "ca": "Sense servidor", "en": "No server", "de": "Kein Server"],
         "name":          ["es": "Nombre", "ca": "Nom", "en": "Name", "de": "Name"],
         "icon":          ["es": "Icono", "ca": "Icona", "en": "Icon", "de": "Symbol"],
+        "camera_denied": ["es": "Sin permiso de cámara. Actívalo en Ajustes de iOS.", "ca": "Sense permís de càmera. Activa'l als Ajustos d'iOS.", "en": "No camera permission. Enable it in iOS Settings.", "de": "Kein Kamerazugriff. In den iOS-Einstellungen aktivieren."],
+        "camera_unavailable": ["es": "Cámara no disponible", "ca": "Càmera no disponible", "en": "Camera unavailable", "de": "Kamera nicht verfügbar"],
+        "camera_section": ["es": "Cámara y movimiento", "ca": "Càmera i moviment", "en": "Camera and motion", "de": "Kamera und Bewegung"],
+        "sensitivity":   ["es": "Sensibilidad", "ca": "Sensibilitat", "en": "Sensitivity", "de": "Empfindlichkeit"],
+        "motion_now":    ["es": "Movimiento ahora", "ca": "Moviment ara", "en": "Motion now", "de": "Bewegung jetzt"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

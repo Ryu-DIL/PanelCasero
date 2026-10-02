@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var store: LightsStore
+    @EnvironmentObject var camera: CameraManager
     @Environment(\.presentationMode) private var presentationMode
 
     @State private var testResult: String? = nil
@@ -68,9 +69,25 @@ struct SettingsView: View {
                     }
                 }
 
-                Section(header: Text(settings.t("test_section"))) {
-                    Button(settings.t("simulate_motion")) {
-                        BrightnessController.shared.motionDetected()
+                Section(header: Text(settings.t("camera_section"))) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(settings.t("sensitivity"))
+                            Spacer()
+                            Text("\(settings.motionSensitivity)")
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: sensitivityBinding, in: 1...10, step: 1)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(settings.t("motion_now"))
+                            Spacer()
+                            Circle()
+                                .fill(camera.motionActive ? Color.red : Color.gray.opacity(0.4))
+                                .frame(width: 10, height: 10)
+                        }
+                        ProgressView(value: camera.motionScore)
                     }
                 }
             }
@@ -83,6 +100,13 @@ struct SettingsView: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    private var sensitivityBinding: Binding<Double> {
+        Binding(
+            get: { Double(settings.motionSensitivity) },
+            set: { settings.motionSensitivity = Int($0) }
+        )
     }
 
     private func nameBinding(_ id: String) -> Binding<String> {
