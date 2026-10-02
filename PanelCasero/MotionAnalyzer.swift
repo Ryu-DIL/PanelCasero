@@ -10,6 +10,7 @@ final class MotionAnalyzer {
     struct Result {
         let score: Double   // 0...1, para el indicador de Ajustes
         let moving: Bool    // true cuando hay movimiento sostenido
+        var lightChanged = false  // true si la luz de toda la imagen cambió de golpe
     }
 
     /// 1 (poco sensible) ... 10 (muy sensible).
@@ -20,8 +21,14 @@ final class MotionAnalyzer {
     /// Cuánto se mezcla cada fotograma en el fondo (0.05 = se adapta en unos 4 s).
     private static let backgroundRate: Float = 0.05
 
+    /// Un cambio brusco del brillo medio de la imagen se considera cambio de luz
+    /// (interruptor, persiana...) y no movimiento: más de 8 niveles y más del 12 %.
+    private static let lightJumpAbsolute: Float = 8
+    private static let lightJumpRelative: Float = 0.12
+
     private var previous: [Float] = []
     private var background: [Float] = []
+    private var previousMean: Float? = nil
     private var streak = 0
 
     /// Diferencia de brillo (0...255) que debe cambiar una celda para contar.
@@ -33,6 +40,7 @@ final class MotionAnalyzer {
     func reset() {
         previous = []
         background = []
+        previousMean = nil
         streak = 0
     }
 
@@ -43,8 +51,24 @@ final class MotionAnalyzer {
         // Se resta el brillo medio para ignorar cambios de luz generales
         // (autoexposición, la propia pantalla, nubes...).
         let mean = current.reduce(0, +) / Float(current.count)
+
+        // ¿Ha cambiado de golpe la luz de toda la imagen?
+        var lightJump = false
+        if let last = previousMean {
+            lightJump = abs(mean - last) > max(Self.lightJumpAbsolute, Self.lightJumpRelative * last)
+        }
+        previousMean = mean
+
         for index in current.indices {
             current[index] -= mean
+        }
+
+        if lightJump {
+            // Se toma la nueva imagen como referencia y no se avisa de movimiento.
+            background = current
+            previous = current
+            streak = 0
+            return Result(score: 0, moving: false, lightChanged: true)
         }
 
         // Primer fotograma tras un reinicio: solo sirve de referencia.

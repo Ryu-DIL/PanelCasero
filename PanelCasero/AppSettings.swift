@@ -36,6 +36,7 @@ final class AppSettings: ObservableObject {
     private static let lightNamesKey = "lightNames"
     private static let lightIconsKey = "lightIcons"
     private static let sensitivityKey = "motionSensitivity"
+    private static let lightChangeKey = "lightChangeIsMotion"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -60,6 +61,11 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(motionSensitivity, forKey: Self.sensitivityKey) }
     }
 
+    /// Si es true, un cambio brusco de luz en la habitación cuenta como movimiento.
+    @Published var lightChangeIsMotion: Bool {
+        didSet { UserDefaults.standard.set(lightChangeIsMotion, forKey: Self.lightChangeKey) }
+    }
+
     @Published var lightNames: [String: String] {
         didSet { UserDefaults.standard.set(lightNames, forKey: Self.lightNamesKey) }
     }
@@ -76,6 +82,7 @@ final class AppSettings: ObservableObject {
         serverToken = defaults.string(forKey: Self.serverTokenKey) ?? ""
         let savedSensitivity = defaults.integer(forKey: Self.sensitivityKey)
         motionSensitivity = savedSensitivity == 0 ? 5 : min(10, max(1, savedSensitivity))
+        lightChangeIsMotion = defaults.bool(forKey: Self.lightChangeKey)
         lightNames = (defaults.dictionary(forKey: Self.lightNamesKey) as? [String: String]) ?? [:]
         lightIcons = (defaults.dictionary(forKey: Self.lightIconsKey) as? [String: String]) ?? [:]
     }

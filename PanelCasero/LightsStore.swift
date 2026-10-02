@@ -54,6 +54,10 @@ final class LightsStore: ObservableObject {
             let list = try await client.fetchAll()
             status = .connected
             for light in list where !isBusy(light.id) {
+                if let old = lights[light.id], visiblyChanged(old, light) {
+                    // Alguien (Alexa, la app de Tuya...) ha cambiado la luz.
+                    MotionGuard.shared.suppress(for: 5)
+                }
                 lights[light.id] = light
             }
         } catch LightsError.unauthorized {
@@ -76,6 +80,15 @@ final class LightsStore: ObservableObject {
         }
     }
 
+    private func visiblyChanged(_ old: LightState, _ new: LightState) -> Bool {
+        old.on != new.on
+            || old.mode != new.mode
+            || abs(old.brightness - new.brightness) > 2
+            || abs(old.hue - new.hue) > 2
+            || abs(old.saturation - new.saturation) > 2
+            || abs(old.temperature - new.temperature) > 2
+    }
+
     private func isBusy(_ id: String) -> Bool {
         if inFlight.contains(id) || pending[id] != nil { return true }
         if let last = lastCommand[id], Date().timeIntervalSince(last) < 3 { return true }
@@ -85,6 +98,8 @@ final class LightsStore: ObservableObject {
     // MARK: - Órdenes
 
     func send(_ id: String, _ command: LightCommand) {
+        // La luz de la habitación va a cambiar: la cámara no debe tomarlo por movimiento.
+        MotionGuard.shared.suppress(for: 5)
         applyOptimistic(id, command)
         lastCommand[id] = Date()
         pending[id] = command

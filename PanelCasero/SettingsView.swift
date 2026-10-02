@@ -89,6 +89,7 @@ struct SettingsView: View {
                         }
                         ProgressView(value: camera.motionScore)
                     }
+                    Toggle(settings.t("light_change_motion"), isOn: $settings.lightChangeIsMotion)
                 }
             }
             .navigationTitle(settings.t("settings"))

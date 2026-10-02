@@ -93,6 +93,8 @@ final class BrightnessController {
         changeLock.lock()
         changedAt = Date()
         changeLock.unlock()
+        // La pantalla ilumina la habitación: la cámara debe ignorar este cambio.
+        MotionGuard.shared.suppress(for: 2.0)
         UIScreen.main.brightness = level
     }
 

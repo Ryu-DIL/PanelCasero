@@ -29,10 +29,14 @@ struct PanelCaseroApp: App {
                     TouchWatcher.install()
                     store.startPolling()
                     camera.setSensitivity(settings.motionSensitivity)
+                    camera.setLightChangeCountsAsMotion(settings.lightChangeIsMotion)
                     camera.start()
                 }
                 .onChange(of: settings.motionSensitivity) { value in
                     camera.setSensitivity(value)
+                }
+                .onChange(of: settings.lightChangeIsMotion) { value in
+                    camera.setLightChangeCountsAsMotion(value)
                 }
         }
         .onChange(of: scenePhase) { phase in

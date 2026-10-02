@@ -51,6 +51,7 @@ enum L10n {
         "camera_section": ["es": "Cámara y movimiento", "ca": "Càmera i moviment", "en": "Camera and motion", "de": "Kamera und Bewegung"],
         "sensitivity":   ["es": "Sensibilidad", "ca": "Sensibilitat", "en": "Sensitivity", "de": "Empfindlichkeit"],
         "motion_now":    ["es": "Movimiento ahora", "ca": "Moviment ara", "en": "Motion now", "de": "Bewegung jetzt"],
+        "light_change_motion": ["es": "Un cambio brusco de luz cuenta como movimiento", "ca": "Un canvi brusc de llum compta com a moviment", "en": "A sudden light change counts as motion", "de": "Ein plötzlicher Lichtwechsel zählt als Bewegung"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

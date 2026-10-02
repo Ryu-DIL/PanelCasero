@@ -26,12 +26,20 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private var frameCount = 0
     private var lastPublish = Date.distantPast
 
-    /// Segundos que se ignoran los fotogramas tras cambiar el brillo de la pantalla.
-    private let ignoreAfterBrightnessChange: TimeInterval = 2.0
+    /// Segundos que se ignora la cámara mientras la imagen se adapta a un cambio de luz.
+    private let settleSeconds: TimeInterval = 2.0
+    /// Solo se lee y escribe desde `queue`.
+    private var lightChangeCountsAsMotion = false
 
     func setSensitivity(_ value: Int) {
         queue.async { [analyzer] in
             analyzer.sensitivity = value
+        }
+    }
+
+    func setLightChangeCountsAsMotion(_ value: Bool) {
+        queue.async { [weak self] in
+            self?.lightChangeCountsAsMotion = value
         }
     }
 
@@ -126,14 +134,26 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         guard frameCount % 3 == 0,
               let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
-        // Si la pantalla acaba de cambiar de brillo, la imagen cambia por la
-        // propia luz de la pantalla: se descarta para no dar falsos avisos.
-        if Date().timeIntervalSince(BrightnessController.shared.lastChange) < ignoreAfterBrightnessChange {
+        // Si la luz acaba de cambiar por una causa conocida (brillo de la pantalla,
+        // una luz que ha encendido la propia app...), se descarta la imagen.
+        if MotionGuard.shared.isSuppressed {
             analyzer.reset()
             return
         }
 
         let result = analyzer.analyze(buffer)
+
+        if result.lightChanged {
+            // Cambio brusco de luz en toda la imagen: la cámara tarda un momento
+            // en adaptar la exposición, así que se ignora un par de segundos.
+            MotionGuard.shared.suppress(for: settleSeconds)
+            if lightChangeCountsAsMotion {
+                BrightnessController.shared.motionDetected()
+                onMotion?()
+            }
+            return
+        }
+
         if result.moving {
             BrightnessController.shared.motionDetected()
             onMotion?()
