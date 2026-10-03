@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PanelCasero</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main id="login" class="login" hidden>
+    <h1>PanelCasero</h1>
+    <p id="loginMsg" class="muted" data-i18n="enter_pin"></p>
+    <div id="dots" class="dots"></div>
+    <div id="pad" class="pad"></div>
+  </main>
+
+  <div id="app" hidden>
+    <header>
+      <strong>PanelCasero</strong>
+      <span id="camState" class="badge"></span>
+    </header>
+
+    <section id="tab-live" class="tab">
+      <div class="live-box">
+        <img id="live" alt="">
+        <p id="liveMsg" class="live-msg"></p>
+      </div>
+    </section>
+
+    <section id="tab-events" class="tab" hidden>
+      <div id="events" class="events"></div>
+      <p id="noEvents" class="muted center" data-i18n="no_events" hidden></p>
+      <button id="more" class="btn" data-i18n="load_more" hidden></button>
+    </section>
+
+    <section id="tab-settings" class="tab" hidden>
+      <div class="card">
+        <h2 data-i18n="notifications"></h2>
+        <p id="pushState" class="muted"></p>
+        <div class="row">
+          <button id="pushEnable" class="btn primary" data-i18n="enable_notifications"></button>
+          <button id="pushTest" class="btn" data-i18n="send_test"></button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="language"></h2>
+        <select id="langSelect">
+          <option value="es">Español</option>
+          <option value="ca">Valencià</option>
+          <option value="en">English</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </div>
+      <div class="card">
+        <button id="logout" class="btn danger" data-i18n="logout"></button>
+      </div>
+    </section>
+
+    <nav id="nav">
+      <button data-tab="live" data-i18n="tab_live"></button>
+      <button data-tab="events" data-i18n="tab_events"></button>
+      <button data-tab="settings" data-i18n="tab_settings"></button>
+    </nav>
+  </div>
+
+  <div id="viewer" class="viewer" hidden>
+    <div class="viewer-box">
+      <p id="viewerTitle" class="muted"></p>
+      <img id="viewerPhoto" alt="">
+      <video id="viewerVideo" controls playsinline hidden></video>
+      <p id="viewerNote" class="muted" hidden></p>
+      <div class="row">
+        <button id="viewerDelete" class="btn danger" data-i18n="delete"></button>
+        <button id="viewerClose" class="btn" data-i18n="close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

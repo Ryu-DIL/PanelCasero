@@ -1,12 +1,17 @@
-import os
-
-os.environ["PANEL_TOKEN"] = "secreto-de-prueba"
+import tempfile
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 import app.lights as lights_module
+from app.config import Settings
 from app.lights import Light, LightManager
 from app.main import create_app
+
+
+def make_settings():
+    return Settings(token="secreto-de-prueba", pin="1234",
+                    data_dir=Path(tempfile.mkdtemp()), background=False)
 
 AUTH = {"Authorization": "Bearer secreto-de-prueba"}
 lights_module.RETRY_DELAY = 0  # los tests no esperan entre reintentos
@@ -63,7 +68,7 @@ def make_client(fail=False, caps=None):
     cfg = {"id": "tira", "name": "Tira LED", "kind": "strip"}
     light = Light(cfg, device_factory=lambda c: FakeBulb(c, fail, caps))
     manager = LightManager([light], interval=3600)
-    return TestClient(create_app(manager)), light
+    return TestClient(create_app(manager, make_settings())), light
 
 
 def test_requires_token():
@@ -168,7 +173,7 @@ def make_flaky(failures):
     budget = {"failures": failures}
     cfg = {"id": "tira", "name": "Tira LED", "kind": "strip"}
     light = Light(cfg, device_factory=lambda c: FlakyBulb(c, budget))
-    return TestClient(create_app(LightManager([light], interval=3600))), light
+    return TestClient(create_app(LightManager([light], interval=3600), make_settings())), light
 
 
 def test_transient_failures_are_retried():

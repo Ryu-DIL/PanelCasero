@@ -15,3 +15,7 @@ server/.env
 server/config/devices.json
 __pycache__/
 .pytest_cache/
+
+# Datos del servidor (base de datos, fotos, clips, claves push)
+server/data/*
+!server/data/.gitkeep
