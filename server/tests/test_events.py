@@ -274,3 +274,69 @@ def test_get_single_event():
         assert body["id"] == event_id and body["photo"] is False
         assert client.get(f"/api/events/{uuid.uuid4()}").status_code == 404
         assert client.get("/api/events/no-es-uuid").status_code == 404
+
+
+# ---------------- directo: el servidor retransmite al iPhone ----------------
+def test_stream_and_snapshot_proxy_to_the_iphone():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    seen = {}
+
+    class FakePhone(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            seen["auth"] = self.headers.get("Authorization")
+            if seen["auth"] != "Bearer clave-del-iphone":
+                self.send_response(401)
+                self.end_headers()
+                return
+            if self.path == "/snapshot.jpg":
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Content-Length", str(len(JPEG)))
+                self.end_headers()
+                self.wfile.write(JPEG)
+            elif self.path == "/stream":
+                self.send_response(200)
+                self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+                self.end_headers()
+                try:
+                    for _ in range(3):
+                        part = b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" % len(JPEG)
+                        self.wfile.write(part + JPEG + b"\r\n")
+                        self.wfile.flush()
+                        time.sleep(0.05)
+                except OSError:
+                    pass
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+    phone = HTTPServer(("127.0.0.1", 0), FakePhone)
+    threading.Thread(target=phone.serve_forever, daemon=True).start()
+
+    client, app = make_client()
+    with client:
+        app.state.cfg.camera_url = f"http://127.0.0.1:{phone.server_address[1]}"
+        assert client.get("/api/camera/snapshot").status_code == 401        # sin sesión
+        login(client)
+
+        snap = client.get("/api/camera/snapshot")
+        assert snap.status_code == 200 and snap.content == JPEG
+        assert seen["auth"] == "Bearer clave-del-iphone"                     # el servidor se identifica ante el iPhone
+
+        with client.stream("GET", "/api/camera/stream") as stream:
+            assert stream.status_code == 200
+            assert stream.headers["content-type"].startswith("multipart/x-mixed-replace")
+            body = b"".join(stream.iter_bytes())
+        assert body.count(b"--frame") == 3 and JPEG in body
+
+        app.state.cfg.camera_url = "http://127.0.0.1:1"                      # iPhone apagado
+        assert client.get("/api/camera/snapshot").status_code == 503
+        assert client.get("/api/camera/stream").status_code == 503
+        app.state.cfg.camera_url = ""
+        assert client.get("/api/camera/snapshot").status_code == 503
+    phone.shutdown()

@@ -10,7 +10,7 @@ Proyecto de código abierto bajo licencia MIT.
 - [x] Fase 1: brillo automático (mínimo / 40 % con movimiento / máximo al tocar)
 - [x] Fase 2: luces Tuya (tocar = encender/apagar, mantener = color, brillo, blanco y favoritos) — servidor en `server/` y app conectada
 - [x] Fase 3: cámara frontal y detección de movimiento (sensibilidad ajustable; sube el brillo al detectar movimiento)
-- [ ] Fase 4: servidor y web (PWA) con notificaciones y directo — 4a servidor y web listos; 4b (app del iPhone: clip, subida y directo) pendiente
+- [x] Fase 4: servidor y web (PWA) con notificaciones y directo; la app del iPhone graba foto + clip de 5 s, los sube (con cola sin conexión), manda latidos y sirve el directo
 - [ ] Fase 5: alarma con PIN
 - [ ] Fase 6: previsión del tiempo y pulido
 

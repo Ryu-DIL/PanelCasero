@@ -5,6 +5,7 @@ struct ContentView: View {
     @EnvironmentObject var store: LightsStore
     @EnvironmentObject var favorites: FavoritesStore
     @EnvironmentObject var camera: CameraManager
+    @EnvironmentObject var link: DeviceLink
     @State private var showSettings = false
 
     var body: some View {
@@ -26,6 +27,7 @@ struct ContentView: View {
                 .environmentObject(store)
                 .environmentObject(favorites)
                 .environmentObject(camera)
+                .environmentObject(link)
                 .preferredColorScheme(settings.colorScheme)
         }
     }

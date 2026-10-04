@@ -49,7 +49,7 @@ y **solo se puede abrir desde tus dispositivos con Tailscale**.
 | PUT | `/api/device/events/{uuid}/clip` | sube el clip (MP4, cuerpo directo) |
 
 El iPhone sirve además su propio directo en `http://<ip-del-iphone>:8081/stream`
-(se activa en la fase 4b); el servidor lo retransmite a la web.
+(requiere la misma clave que usa el servidor); el servidor lo retransmite a la web.
 
 ## Luces
 

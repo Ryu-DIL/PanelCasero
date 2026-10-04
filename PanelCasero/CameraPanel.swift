@@ -12,7 +12,8 @@ struct CameraPanel: View {
 
             switch camera.state {
             case .running:
-                CameraPreview(session: camera.session, running: true)
+                CameraPreview(session: camera.session, running: true,
+                              onOrientation: { camera.setVideoOrientation($0) })
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             case .denied:
                 message(settings.t("camera_denied"))

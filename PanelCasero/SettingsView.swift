@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var store: LightsStore
     @EnvironmentObject var camera: CameraManager
+    @EnvironmentObject var link: DeviceLink
     @Environment(\.presentationMode) private var presentationMode
 
     @State private var testResult: String? = nil
@@ -90,6 +91,22 @@ struct SettingsView: View {
                         ProgressView(value: camera.motionScore)
                     }
                     Toggle(settings.t("light_change_motion"), isOn: $settings.lightChangeIsMotion)
+                    Button(settings.t("send_test_event")) {
+                        camera.captureEvent(kind: "test")
+                    }
+                    .disabled(camera.state != .running)
+                    HStack {
+                        Text(settings.t("server_link"))
+                        Spacer()
+                        Text(linkText)
+                            .foregroundColor(.secondary)
+                    }
+                    HStack {
+                        Text(settings.t("events_pending"))
+                        Spacer()
+                        Text("\(link.pendingCount)")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .navigationTitle(settings.t("settings"))
@@ -101,6 +118,14 @@ struct SettingsView: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    private var linkText: String {
+        switch link.serverReachable {
+        case .some(true): return settings.t("link_ok")
+        case .some(false): return settings.t("link_down")
+        case .none: return settings.t("link_unknown")
+        }
     }
 
     private var sensitivityBinding: Binding<Double> {
