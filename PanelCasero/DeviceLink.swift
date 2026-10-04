@@ -68,10 +68,22 @@ final class DeviceLink: ObservableObject {
         let level: Double? = device.batteryLevel >= 0 ? Double(device.batteryLevel) : nil
         let charging = device.batteryState == .charging || device.batteryState == .full
         do {
-            try await client.heartbeat(battery: level, charging: charging, alarm: alarmState())
+            try await client.heartbeat(battery: level, charging: charging, alarm: alarmState(),
+                                       thermal: Self.thermalName())
             serverReachable = true
         } catch {
             serverReachable = false
+        }
+    }
+
+    /// Estado térmico del iPhone: nominal, fair, serious o critical.
+    private static func thermalName() -> String {
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: return "nominal"
+        case .fair: return "fair"
+        case .serious: return "serious"
+        case .critical: return "critical"
+        @unknown default: return "nominal"
         }
     }
 

@@ -15,6 +15,8 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     @Published private(set) var motionScore: Double = 0
     /// true mientras hay movimiento sostenido.
     @Published private(set) var motionActive = false
+    /// true si el iPhone está caliente y la cámara trabaja a medio gas para enfriarse.
+    @Published private(set) var reducedMode = false
 
     let session = AVCaptureSession()
 
@@ -38,9 +40,38 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private var pendingEvent: (id: String, kind: String, created: Date, hold: Bool, reason: String?)?
     private var recordingEventID: String?
     private var lightChangeCountsAsMotion = false
+    /// 0 = normal, 1 = iPhone caliente, 2 = iPhone muy caliente.
+    private var loadLevel = 0
 
     /// Segundos que se ignora la cámara mientras la imagen se adapta a un cambio de luz.
     private let settleSeconds: TimeInterval = 2.0
+
+    override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(thermalChanged),
+                                               name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
+        applyThermalState()
+    }
+
+    @objc private func thermalChanged() {
+        applyThermalState()
+    }
+
+    /// Si el iPhone se calienta, se analizan menos imágenes y se manda menos directo.
+    private func applyThermalState() {
+        let level: Int
+        switch ProcessInfo.processInfo.thermalState {
+        case .serious: level = 1
+        case .critical: level = 2
+        default: level = 0
+        }
+        queue.async { [weak self] in
+            self?.loadLevel = level
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.reducedMode = level > 0
+        }
+    }
 
     // MARK: - Ajustes
 
@@ -235,8 +266,10 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         // 3. Directo: pocas imágenes por segundo si nadie mira, más si hay espectadores.
         publishStreamFrame(buffer)
 
-        // 4. Detección de movimiento: 1 de cada 3 fotogramas (unos 5 por segundo).
-        guard frameCount % 3 == 0 else { return }
+        // 4. Detección de movimiento: 1 de cada 3 fotogramas (unos 5 por segundo);
+        //    con el iPhone caliente, 1 de cada 6 o de cada 9.
+        let analysisEvery = [3, 6, 9][min(loadLevel, 2)]
+        guard frameCount % analysisEvery == 0 else { return }
 
         // Si la luz acaba de cambiar por una causa conocida (brillo de la pantalla,
         // una luz que ha encendido la propia app...), se descarta la imagen.
@@ -276,7 +309,8 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private func publishStreamFrame(_ buffer: CVPixelBuffer) {
         let server = StreamServer.shared
         let watching = server.hasClients
-        let interval: TimeInterval = watching ? 0.16 : 1.0     // ~6 imágenes/s o 1 imagen/s
+        let slowdown = [1.0, 2.5, 6.0][min(loadLevel, 2)]
+        let interval: TimeInterval = (watching ? 0.16 : 1.0) * slowdown   // ~6 imágenes/s o 1 imagen/s
         let now = Date()
         guard now.timeIntervalSince(lastStreamFrame) >= interval else { return }
         lastStreamFrame = now

@@ -7,6 +7,7 @@ struct SettingsView: View {
     @EnvironmentObject var camera: CameraManager
     @EnvironmentObject var link: DeviceLink
     @EnvironmentObject var alarm: AlarmController
+    @EnvironmentObject var weather: WeatherService
     @Environment(\.presentationMode) private var presentationMode
 
     @State private var unlocked = false
@@ -80,6 +81,18 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+            }
+
+            Section(header: Text(settings.t("weather"))) {
+                TextField(settings.t("city"), text: $settings.weatherCity)
+                    .autocapitalization(.words)
+                    .disableAutocorrection(true)
+                    .onSubmit { Task { await weather.refresh() } }
+                if !weather.placeName.isEmpty {
+                    Text(weather.placeName)
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
             }
 

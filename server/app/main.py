@@ -60,6 +60,7 @@ class HeartbeatBody(BaseModel):
     charging: Optional[bool] = None
     armed: Optional[bool] = None
     alarm: Optional[str] = Field(default=None, pattern="^(disarmed|exiting|armed|entry)$")
+    thermal: Optional[str] = Field(default=None, pattern="^(nominal|fair|serious|critical)$")
 
 
 class LoginBody(BaseModel):
@@ -101,7 +102,9 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
         app.state.auth = Auth(db, cfg.pin, cfg.token)
         app.state.events = events
         app.state.push = push
-        app.state.camera = CameraMonitor(events, push, cfg.offline_after)
+        app.state.camera = CameraMonitor(events, push, cfg.offline_after,
+                                         low_battery=cfg.low_battery,
+                                         power_lost_after=cfg.power_lost_after)
         app.state.lights = manager or LightManager.from_file(CONFIG_PATH)
         app.state.lights.start()
         if cfg.background:
@@ -222,7 +225,7 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
     # ---------- iPhone: latido y eventos ----------
     @app.post("/api/device/heartbeat", dependencies=[Depends(need_device)])
     def heartbeat(body: HeartbeatBody):
-        app.state.camera.heartbeat(body.battery, body.charging, body.armed, body.alarm)
+        app.state.camera.heartbeat(body.battery, body.charging, body.armed, body.alarm, body.thermal)
         return {"ok": True, "server_time": time.time()}
 
     @app.put("/api/device/events/{event_id}", dependencies=[Depends(need_device)])

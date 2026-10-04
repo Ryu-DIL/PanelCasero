@@ -74,6 +74,30 @@ decide, y devuelve el estado resultante. Si el iPhone no responde, la web lo ind
 - Las imágenes de las notificaciones usan enlaces firmados que caducan a los 30 días.
 - Los datos viven en `server/data/` (ignorada por git), incluida la clave de las notificaciones.
 
+## Avisos automáticos
+
+Además de las alertas de la alarma, el servidor avisa por notificación cuando el iPhone:
+
+- deja de dar señales (3 min), y cuando vuelve;
+- tiene la **batería baja** (20 % por defecto, `PANEL_LOW_BATTERY_PERCENT`) y no está cargando;
+- lleva más de 5 min **sin cargar** (corte de luz o cable suelto; `PANEL_POWER_LOST_MINUTES`), y cuando vuelve;
+- se **calienta** (la cámara reduce su actividad sola).
+
+## Copias de seguridad
+
+Lo que hay que guardar para poder reconstruirlo todo: `.env`, `config/devices.json` y `data/`
+(base de datos, fotos, clips y la clave de las notificaciones).
+
+```bash
+cd ~/PanelCasero/server
+tar czf ~/panelcasero-copia-$(date +%F).tar.gz .env config/devices.json data
+```
+
+Para restaurar en otro servidor: clona el repositorio, descomprime ese archivo dentro de `server/`
+y ejecuta `docker compose up -d --build`. Si pierdes `data/vapid_private.pem`, hay que volver a
+pulsar "Activar notificaciones" en cada móvil. Guarda la copia fuera del servidor y en un sitio
+privado: contiene las claves de tus luces y de la cámara.
+
 ## Pruebas
 
 ```bash

@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var camera: CameraManager
     @EnvironmentObject var link: DeviceLink
     @EnvironmentObject var alarm: AlarmController
+    @EnvironmentObject var weather: WeatherService
     @State private var showSettings = false
 
     var body: some View {
@@ -34,6 +35,7 @@ struct ContentView: View {
                 .environmentObject(camera)
                 .environmentObject(link)
                 .environmentObject(alarm)
+                .environmentObject(weather)
                 .preferredColorScheme(settings.colorScheme)
         }
     }

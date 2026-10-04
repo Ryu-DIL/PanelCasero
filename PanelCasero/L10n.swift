@@ -73,6 +73,7 @@ enum L10n {
         "pin_not_set": ["es": "Sin PIN", "ca": "Sense PIN", "en": "No PIN", "de": "Keine PIN"],
         "siren": ["es": "Sirena tras la alerta", "ca": "Sirena després de l'alerta", "en": "Siren after the alert", "de": "Sirene nach dem Alarm"],
         "siren_off": ["es": "Apagada", "ca": "Apagada", "en": "Off", "de": "Aus"],
+        "city": ["es": "Ciudad", "ca": "Ciutat", "en": "City", "de": "Stadt"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

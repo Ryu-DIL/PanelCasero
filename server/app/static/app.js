@@ -21,7 +21,9 @@ const I18N = {
     alarm: 'Alarma', alarm_disarmed: 'Desarmada', alarm_exiting: 'Armando…', alarm_armed: 'Armada',
     alarm_entry: 'Movimiento detectado: esperando el PIN en el panel', alarm_unknown: 'Sin datos de la cámara',
     arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La cámara no responde.',
-    kind_alert_pin: 'PIN incorrecto en el panel'
+    kind_alert_pin: 'PIN incorrecto en el panel',
+    kind_battery_low: 'Batería baja', kind_power_lost: 'Sin carga (¿corte de luz?)',
+    kind_power_restored: 'Vuelve a cargar', kind_hot: 'iPhone muy caliente'
   },
   ca: {
     enter_pin: 'Introdueix el PIN', wrong_pin: 'PIN incorrecte', locked: 'Massa intents. Espera {m} min.',
@@ -42,7 +44,9 @@ const I18N = {
     alarm: 'Alarma', alarm_disarmed: 'Desarmada', alarm_exiting: 'Armant…', alarm_armed: 'Armada',
     alarm_entry: 'Moviment detectat: esperant el PIN al panell', alarm_unknown: 'Sense dades de la càmera',
     arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La càmera no respon.',
-    kind_alert_pin: 'PIN incorrecte al panell'
+    kind_alert_pin: 'PIN incorrecte al panell',
+    kind_battery_low: 'Bateria baixa', kind_power_lost: 'Sense càrrega (tall de llum?)',
+    kind_power_restored: 'Torna a carregar', kind_hot: 'iPhone molt calent'
   },
   en: {
     enter_pin: 'Enter the PIN', wrong_pin: 'Wrong PIN', locked: 'Too many attempts. Wait {m} min.',
@@ -63,7 +67,9 @@ const I18N = {
     alarm: 'Alarm', alarm_disarmed: 'Disarmed', alarm_exiting: 'Arming…', alarm_armed: 'Armed',
     alarm_entry: 'Motion detected: waiting for the PIN on the panel', alarm_unknown: 'No camera data',
     arm: 'Arm', disarm: 'Disarm', alarm_error: 'The camera is not responding.',
-    kind_alert_pin: 'Wrong PIN on the panel'
+    kind_alert_pin: 'Wrong PIN on the panel',
+    kind_battery_low: 'Low battery', kind_power_lost: 'Not charging (power cut?)',
+    kind_power_restored: 'Charging again', kind_hot: 'iPhone very hot'
   },
   de: {
     enter_pin: 'PIN eingeben', wrong_pin: 'Falsche PIN', locked: 'Zu viele Versuche. Warte {m} Min.',
@@ -84,7 +90,9 @@ const I18N = {
     alarm: 'Alarm', alarm_disarmed: 'Unscharf', alarm_exiting: 'Wird scharf…', alarm_armed: 'Scharf',
     alarm_entry: 'Bewegung erkannt: warte auf die PIN am Panel', alarm_unknown: 'Keine Kameradaten',
     arm: 'Scharf stellen', disarm: 'Unscharf stellen', alarm_error: 'Die Kamera antwortet nicht.',
-    kind_alert_pin: 'Falsche PIN am Panel'
+    kind_alert_pin: 'Falsche PIN am Panel',
+    kind_battery_low: 'Akku schwach', kind_power_lost: 'Lädt nicht (Stromausfall?)',
+    kind_power_restored: 'Lädt wieder', kind_hot: 'iPhone sehr heiß'
   }
 };
 const LOCALES = { es: 'es-ES', ca: 'ca-ES', en: 'en-GB', de: 'de-DE' };
@@ -301,7 +309,8 @@ async function refreshStatus() {
     const badge = $('camState');
     badge.className = 'badge ' + (!cam.known ? '' : cam.online ? 'ok' : 'bad');
     let text = !cam.known ? t('cam_unknown') : cam.online ? t('cam_online') : t('cam_offline');
-    if (cam.online && typeof cam.battery === 'number') text += ' · ' + Math.round(cam.battery * 100) + '%';
+    if (cam.online && typeof cam.battery === 'number') text += ' · ' + Math.round(cam.battery * 100) + '%' + (cam.charging ? '⚡' : '');
+    if (cam.online && (cam.thermal === 'serious' || cam.thermal === 'critical')) text += ' 🌡️';
     badge.innerHTML = '<i></i>';
     badge.appendChild(document.createTextNode(text));
     alarmCameraOnline = cam.known && cam.online;
@@ -341,7 +350,7 @@ function renderEvent(event) {
   } else {
     thumb = document.createElement('div');
     thumb.className = 'noimg';
-    thumb.textContent = event.kind === 'offline' ? '📡' : '✔';
+    thumb.textContent = ({ offline: '📡', battery_low: '🔋', power_lost: '⚡', hot: '🌡️' })[event.kind] || '✔';
   }
   const text = document.createElement('div');
   const title = document.createElement('b');

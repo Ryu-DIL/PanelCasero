@@ -8,6 +8,7 @@ struct PanelCaseroApp: App {
     @StateObject private var favorites = FavoritesStore()
     @StateObject private var camera: CameraManager
     @StateObject private var alarm: AlarmController
+    @StateObject private var weather: WeatherService
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -19,6 +20,7 @@ struct PanelCaseroApp: App {
         _camera = StateObject(wrappedValue: camera)
         _link = StateObject(wrappedValue: link)
         _alarm = StateObject(wrappedValue: AlarmController(settings: settings, camera: camera, link: link))
+        _weather = StateObject(wrappedValue: WeatherService(settings: settings))
     }
 
     var body: some Scene {
@@ -28,6 +30,7 @@ struct PanelCaseroApp: App {
                 .environmentObject(store)
                 .environmentObject(link)
                 .environmentObject(alarm)
+                .environmentObject(weather)
                 .environmentObject(favorites)
                 .environmentObject(camera)
                 .preferredColorScheme(settings.colorScheme)
@@ -86,6 +89,7 @@ struct PanelCaseroApp: App {
         BrightnessController.shared.start()
         store.startPolling()
         link.start()
+        weather.start()
         StreamServer.shared.start()
         camera.start()
     }
@@ -96,6 +100,7 @@ struct PanelCaseroApp: App {
         BrightnessController.shared.stop()
         store.stopPolling()
         link.stop()
+        weather.stop()
         StreamServer.shared.stop()
         camera.stop()
     }

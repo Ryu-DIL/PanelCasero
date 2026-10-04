@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: macos-15
+    permissions:
+      contents: write        # para publicar el .ipa en la release "latest"
     steps:
       - name: Descargar el codigo
         uses: actions/checkout@v4
@@ -43,3 +45,17 @@ jobs:
         with:
           name: PanelCasero-ipa
           path: PanelCasero.ipa
+
+      # El .ipa queda siempre en la misma dirección, para abrirlo directamente en el iPhone:
+      # https://github.com/<usuario>/<repositorio>/releases/latest/download/PanelCasero.ipa
+      - name: Publicar en la release "latest"
+        if: github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest PanelCasero.ipa \
+            --title "Última versión" \
+            --notes "Compilación automática del commit ${GITHUB_SHA::7}. Ábrela con TrollStore." \
+            --target "$GITHUB_SHA"

@@ -438,3 +438,67 @@ def test_remote_arm_and_disarm_go_through_the_iphone():
         app.state.cfg.camera_url = "http://127.0.0.1:1"                    # iPhone apagado
         assert client.post("/api/alarm/arm").status_code == 503
     phone.shutdown()
+
+
+# ---------------- avisos de batería, corte de luz y calor ----------------
+def test_battery_power_and_heat_alerts():
+    client, app = make_client()
+    with client:
+        clock = {"t": 5000.0}
+        sent = []
+        app.state.push._deliver = lambda sub, payload, urgent=False: sent.append(payload)
+        app.state.push.subscribe(**{"endpoint": "https://push.example/y",
+                                    "p256dh": browser_subscription()["keys"]["p256dh"],
+                                    "auth": browser_subscription()["keys"]["auth"]})
+        monitor = CameraMonitor(app.state.events, app.state.push, offline_after=1e9,
+                                clock=lambda: clock["t"], low_battery=0.20, power_lost_after=300)
+
+        # Todo normal: cargando, batería buena.
+        monitor.heartbeat(battery=0.9, charging=True, thermal="nominal")
+        assert sent == []
+
+        # Batería baja sin cargar: un solo aviso, con el porcentaje.
+        monitor.heartbeat(battery=0.18, charging=False)
+        monitor.heartbeat(battery=0.17, charging=False)
+        low = [p for p in sent if p["kind"] == "battery_low"]
+        assert len(low) == 1 and "18" in low[0]["body"]
+        # Se recupera (pasa de 30 %) y vuelve a poder avisar.
+        monitor.heartbeat(battery=0.5, charging=True)
+        monitor.heartbeat(battery=0.15, charging=False)
+        assert len([p for p in sent if p["kind"] == "battery_low"]) == 2
+
+        # Corte de luz: deja de cargar más de 5 minutos.
+        sent.clear()
+        monitor.heartbeat(battery=0.6, charging=True)
+        monitor.heartbeat(battery=0.6, charging=False)
+        clock["t"] += 200
+        monitor.heartbeat(battery=0.6, charging=False)
+        assert sent == []                                      # aún no han pasado 5 min
+        clock["t"] += 120
+        monitor.heartbeat(battery=0.6, charging=False)
+        assert [p["kind"] for p in sent] == ["power_lost"]
+        monitor.heartbeat(battery=0.6, charging=False)
+        assert len(sent) == 1                                  # no repite
+        monitor.heartbeat(battery=0.6, charging=True)
+        assert [p["kind"] for p in sent] == ["power_lost", "power_restored"]
+
+        # Calor: un aviso al pasar a "serious" y otro solo tras enfriarse.
+        sent.clear()
+        monitor.heartbeat(battery=0.6, charging=True, thermal="serious")
+        monitor.heartbeat(battery=0.6, charging=True, thermal="critical")
+        assert [p["kind"] for p in sent] == ["hot"]
+        monitor.heartbeat(battery=0.6, charging=True, thermal="fair")
+        monitor.heartbeat(battery=0.6, charging=True, thermal="serious")
+        assert [p["kind"] for p in sent] == ["hot", "hot"]
+
+        kinds = {e["kind"] for e in app.state.events.list(200)}
+        assert {"battery_low", "power_lost", "power_restored", "hot"} <= kinds
+
+
+def test_heartbeat_accepts_thermal_and_rejects_nonsense():
+    client, _ = make_client()
+    with client:
+        login(client)
+        assert client.post("/api/device/heartbeat", json={"thermal": "serious"}, headers=DEVICE).status_code == 200
+        assert client.get("/api/status").json()["camera"]["thermal"] == "serious"
+        assert client.post("/api/device/heartbeat", json={"thermal": "ardiendo"}, headers=DEVICE).status_code == 422

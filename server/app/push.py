@@ -18,6 +18,30 @@ MESSAGES = {
         "en": ("Motion detected", "Motion was detected in the room."),
         "de": ("Bewegung erkannt", "Im Raum wurde eine Bewegung erkannt."),
     },
+    "battery_low": {
+        "es": ("Batería baja", "La batería del iPhone de la cámara está al {pct} %."),
+        "ca": ("Bateria baixa", "La bateria de l'iPhone de la càmera està al {pct} %."),
+        "en": ("Low battery", "The camera iPhone battery is at {pct}%."),
+        "de": ("Akku schwach", "Der Akku des Kamera-iPhones steht bei {pct} %."),
+    },
+    "power_lost": {
+        "es": ("El iPhone ha dejado de cargar", "Puede ser un corte de luz o el cable suelto."),
+        "ca": ("L'iPhone ha deixat de carregar", "Pot ser un tall de llum o el cable solt."),
+        "en": ("The iPhone stopped charging", "It may be a power cut or a loose cable."),
+        "de": ("Das iPhone lädt nicht mehr", "Möglicherweise ein Stromausfall oder ein loses Kabel."),
+    },
+    "power_restored": {
+        "es": ("El iPhone vuelve a cargar", "La alimentación se ha restablecido."),
+        "ca": ("L'iPhone torna a carregar", "L'alimentació s'ha restablit."),
+        "en": ("The iPhone is charging again", "Power has been restored."),
+        "de": ("Das iPhone lädt wieder", "Die Stromversorgung ist wiederhergestellt."),
+    },
+    "hot": {
+        "es": ("El iPhone está muy caliente", "La cámara ha reducido su actividad para enfriarse."),
+        "ca": ("L'iPhone està molt calent", "La càmera ha reduït l'activitat per refredar-se."),
+        "en": ("The iPhone is very hot", "The camera reduced its activity to cool down."),
+        "de": ("Das iPhone ist sehr heiß", "Die Kamera hat ihre Aktivität zum Abkühlen reduziert."),
+    },
     "alert_pin": {
         "es": ("PIN incorrecto en el panel", "Se han introducido varios PIN incorrectos en el panel."),
         "ca": ("PIN incorrecte al panell", "S'han introduït diversos PIN incorrectes al panell."),
@@ -85,19 +109,22 @@ class PushService:
         return len(self.db.query("SELECT endpoint FROM push_subs"))
 
     # ---- envío ----
-    def notify(self, kind, event_id=None, image=None, created=None, reason=None):
+    def notify(self, kind, event_id=None, image=None, created=None, reason=None, params=None):
         """Avisa a todos los dispositivos suscritos (en segundo plano si procede)."""
         if self.background:
             threading.Thread(
-                target=self._notify_all, args=(kind, event_id, image, created, reason), daemon=True
+                target=self._notify_all, args=(kind, event_id, image, created, reason, params),
+                daemon=True,
             ).start()
         else:
-            self._notify_all(kind, event_id, image, created, reason)
+            self._notify_all(kind, event_id, image, created, reason, params)
 
-    def _notify_all(self, kind, event_id, image, created, reason=None):
+    def _notify_all(self, kind, event_id, image, created, reason=None, params=None):
         key = "alert_pin" if kind == "alert" and reason == "pin" else kind
         for sub in self.db.query("SELECT * FROM push_subs"):
             title, body = MESSAGES[key].get(sub["lang"], MESSAGES[key]["es"])
+            if params:
+                body = body.format(**params)
             payload = {
                 "kind": kind,
                 "title": title,
@@ -107,7 +134,7 @@ class PushService:
                 "image": image,
                 "ts": created or time.time(),
             }
-            self._deliver(sub, payload, urgent=kind in ("alert", "offline"))
+            self._deliver(sub, payload, urgent=kind in ("alert", "offline", "power_lost", "hot"))
 
     def _deliver(self, sub, payload, urgent=False):
         info = {"endpoint": sub["endpoint"], "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]}}

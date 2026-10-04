@@ -21,11 +21,12 @@ struct DeviceClient {
         return DeviceClient(baseURL: text, token: key)
     }
 
-    func heartbeat(battery: Double?, charging: Bool?, alarm: String?) async throws {
+    func heartbeat(battery: Double?, charging: Bool?, alarm: String?, thermal: String?) async throws {
         var body: [String: Any] = [:]
         if let battery = battery { body["battery"] = battery }
         if let charging = charging { body["charging"] = charging }
         if let alarm = alarm { body["alarm"] = alarm }
+        if let thermal = thermal { body["thermal"] = thermal }
         let data = try JSONSerialization.data(withJSONObject: body)
         try await send(path: "/api/device/heartbeat", method: "POST", json: data, file: nil, contentType: nil)
     }

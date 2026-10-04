@@ -30,6 +30,12 @@ struct CameraPanel: View {
                         .fill(camera.motionActive ? Color.red : Color.clear)
                         .frame(width: 10, height: 10)
                         .padding(.top, 14)
+                    if camera.reducedMode {
+                        Image(systemName: "thermometer.sun.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.orange)
+                            .padding(.top, 10)
+                    }
                     Spacer()
                     lockButton
                 }

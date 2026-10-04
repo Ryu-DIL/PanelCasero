@@ -12,7 +12,19 @@ Proyecto de código abierto bajo licencia MIT.
 - [x] Fase 3: cámara frontal y detección de movimiento (sensibilidad ajustable; sube el brillo al detectar movimiento)
 - [x] Fase 4: servidor y web (PWA) con notificaciones y directo; la app del iPhone graba foto + clip de 5 s, los sube (con cola sin conexión), manda latidos y sirve el directo
 - [x] Fase 5: alarma con PIN (candado en la cámara, 60 s de salida y de entrada, sirena tras el aviso, armar/desarmar desde la web)
-- [ ] Fase 6: previsión del tiempo y pulido
+- [x] Fase 6: previsión del tiempo (Open-Meteo), avisos de batería baja / corte de luz / calor, la cámara reduce el trabajo si el iPhone se calienta, y el `.ipa` se publica solo en la release "latest"
+
+## Instalar o actualizar la app en el iPhone
+
+Cada vez que se sube código a `main`, el `.ipa` se publica solo en la release **latest**.
+En el Safari del iPhone abre:
+
+```
+https://github.com/<usuario>/PanelCasero/releases/latest/download/PanelCasero.ipa
+```
+
+Descárgalo, ábrelo con **TrollStore** (compartir → TrollStore, o TrollStore → **+** → Install IPA File)
+y se instala encima de la versión anterior, conservando los ajustes.
 
 ## Cómo se compila
 

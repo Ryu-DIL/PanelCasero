@@ -12,6 +12,8 @@ class Settings:
     camera_url: str = ""             # p. ej. http://192.168.1.181:8081
     vapid_subject: str = "mailto:admin@panelcasero.local"
     offline_after: float = 180.0     # segundos sin latido -> "cámara desconectada"
+    low_battery: float = 0.20        # por debajo (y sin cargar) -> aviso de batería baja
+    power_lost_after: float = 300.0  # segundos sin cargar -> aviso de corte de luz
     background: bool = True          # hilos de limpieza y vigilancia (se desactivan en tests)
 
     @classmethod
@@ -29,4 +31,6 @@ class Settings:
             retention_days=int(os.environ.get("PANEL_RETENTION_DAYS", "30")),
             camera_url=os.environ.get("PANEL_CAMERA_URL", "").rstrip("/"),
             vapid_subject=os.environ.get("PANEL_VAPID_SUBJECT", "mailto:admin@panelcasero.local"),
+            low_battery=int(os.environ.get("PANEL_LOW_BATTERY_PERCENT", "20")) / 100,
+            power_lost_after=float(os.environ.get("PANEL_POWER_LOST_MINUTES", "5")) * 60,
         )
