@@ -43,13 +43,19 @@ y **solo se puede abrir desde tus dispositivos con Tailscale**.
 
 | Método | Ruta | Para qué |
 |---|---|---|
-| POST | `/api/device/heartbeat` | latido: `{"battery":0-1,"charging":bool,"armed":bool}` |
-| PUT | `/api/device/events/{uuid}` | crea el evento: `{"kind":"alert","created":epoch}` |
+| POST | `/api/device/heartbeat` | latido: `{"battery":0-1,"charging":bool,"alarm":"disarmed|exiting|armed|entry"}` |
+| PUT | `/api/device/events/{uuid}` | crea el evento: `{"kind":"alert","created":epoch,"reason":"motion"|"pin"}` |
 | PUT | `/api/device/events/{uuid}/photo` | sube la foto (JPEG, cuerpo directo) y avisa |
 | PUT | `/api/device/events/{uuid}/clip` | sube el clip (MP4, cuerpo directo) |
 
 El iPhone sirve además su propio directo en `http://<ip-del-iphone>:8081/stream`
 (requiere la misma clave que usa el servidor); el servidor lo retransmite a la web.
+
+## Alarma desde la web
+
+La web (sesión con PIN) arma y desarma con `POST /api/alarm/arm` y `/api/alarm/disarm`.
+El servidor se lo pide al iPhone (`POST http://<ip-del-iphone>:8081/alarm/arm`), que es quien
+decide, y devuelve el estado resultante. Si el iPhone no responde, la web lo indica.
 
 ## Luces
 

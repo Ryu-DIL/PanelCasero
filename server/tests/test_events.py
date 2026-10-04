@@ -340,3 +340,101 @@ def test_stream_and_snapshot_proxy_to_the_iphone():
         app.state.cfg.camera_url = ""
         assert client.get("/api/camera/snapshot").status_code == 503
     phone.shutdown()
+
+
+# ---------------- alarma ----------------
+def test_alert_reason_pin_uses_its_own_message():
+    client, app = make_client()
+    with client:
+        session = FakeSession()
+        app.state.push.session = session
+        sent = []
+        real = app.state.push._deliver
+        app.state.push._deliver = lambda sub, payload, urgent=False: (sent.append(payload), real(sub, payload, urgent))
+        login(client)
+        client.post("/api/push/subscribe", json={"subscription": browser_subscription(), "lang": "es"})
+
+        motion = str(uuid.uuid4())
+        client.put(f"/api/device/events/{motion}", json={"kind": "alert", "reason": "motion"}, headers=DEVICE)
+        client.put(f"/api/device/events/{motion}/photo", content=JPEG, headers=DEVICE)
+        pin = str(uuid.uuid4())
+        client.put(f"/api/device/events/{pin}", json={"kind": "alert", "reason": "pin"}, headers=DEVICE)
+        client.put(f"/api/device/events/{pin}/photo", content=JPEG, headers=DEVICE)
+
+        assert sent[0]["title"] == "Movimiento detectado"
+        assert sent[1]["title"] == "PIN incorrecto en el panel"
+        reasons = {e["id"]: e["reason"] for e in client.get("/api/events").json()}
+        assert reasons[motion] == "motion" and reasons[pin] == "pin"
+        bad = client.put(f"/api/device/events/{uuid.uuid4()}", json={"kind": "alert", "reason": "otro"}, headers=DEVICE)
+        assert bad.status_code == 400
+
+
+def test_old_database_without_reason_column_is_migrated():
+    import sqlite3
+    from app.db import Database
+    folder = Path(tempfile.mkdtemp())
+    conn = sqlite3.connect(str(folder / "old.db"))
+    conn.execute("CREATE TABLE events (id TEXT PRIMARY KEY, created REAL NOT NULL, kind TEXT NOT NULL, "
+                 "photo INTEGER NOT NULL DEFAULT 0, clip INTEGER NOT NULL DEFAULT 0, notified INTEGER NOT NULL DEFAULT 0)")
+    conn.execute("INSERT INTO events(id, created, kind) VALUES('a', 1.0, 'alert')")
+    conn.commit()
+    conn.close()
+    db = Database(folder / "old.db")
+    assert db.one("SELECT reason FROM events WHERE id = 'a'") == {"reason": None}
+
+
+def test_heartbeat_carries_alarm_state():
+    client, _ = make_client()
+    with client:
+        login(client)
+        r = client.post("/api/device/heartbeat", json={"alarm": "armed"}, headers=DEVICE)
+        assert r.status_code == 200
+        camera = client.get("/api/status").json()["camera"]
+        assert camera["alarm"] == "armed" and camera["armed"] is True
+        client.post("/api/device/heartbeat", json={"alarm": "disarmed"}, headers=DEVICE)
+        assert client.get("/api/status").json()["camera"]["armed"] is False
+        assert client.post("/api/device/heartbeat", json={"alarm": "loquesea"}, headers=DEVICE).status_code == 422
+
+
+def test_remote_arm_and_disarm_go_through_the_iphone():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    calls = []
+    state = {"now": "disarmed"}
+
+    class FakePhone(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_POST(self):
+            calls.append((self.path, self.headers.get("Authorization")))
+            if self.headers.get("Authorization") != "Bearer clave-del-iphone":
+                self.send_response(401)
+                self.end_headers()
+                return
+            state["now"] = "exiting" if self.path == "/alarm/arm" else "disarmed"
+            body = json.dumps({"state": state["now"]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    phone = HTTPServer(("127.0.0.1", 0), FakePhone)
+    threading.Thread(target=phone.serve_forever, daemon=True).start()
+    client, app = make_client()
+    with client:
+        app.state.cfg.camera_url = f"http://127.0.0.1:{phone.server_address[1]}"
+        assert client.post("/api/alarm/arm").status_code == 401            # hace falta sesión
+        login(client)
+        assert client.post("/api/alarm/arm").json() == {"alarm": "exiting"}
+        assert client.get("/api/status").json()["camera"]["armed"] is True
+        assert client.post("/api/alarm/disarm").json() == {"alarm": "disarmed"}
+        assert client.get("/api/status").json()["camera"]["armed"] is False
+        assert client.post("/api/alarm/explotar").status_code == 404
+        assert calls == [("/alarm/arm", "Bearer clave-del-iphone"), ("/alarm/disarm", "Bearer clave-del-iphone")]
+
+        app.state.cfg.camera_url = "http://127.0.0.1:1"                    # iPhone apagado
+        assert client.post("/api/alarm/arm").status_code == 503
+    phone.shutdown()

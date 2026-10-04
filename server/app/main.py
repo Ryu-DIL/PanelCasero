@@ -16,7 +16,7 @@ from .auth import Auth
 from .camera import CameraMonitor
 from .config import Settings
 from .db import Database
-from .events import (DEVICE_KINDS, MAX_BYTES, MEDIA, NOTIFY_KINDS, EventStore,
+from .events import (DEVICE_KINDS, MAX_BYTES, MEDIA, NOTIFY_KINDS, REASONS, EventStore,
                      looks_like, valid_id)
 from .lights import LightError, LightManager, Unsupported
 from .push import PushService
@@ -52,12 +52,14 @@ class BrightnessBody(BaseModel):
 class EventBody(BaseModel):
     kind: str = "alert"
     created: Optional[float] = None
+    reason: Optional[str] = None
 
 
 class HeartbeatBody(BaseModel):
     battery: Optional[float] = Field(default=None, ge=0, le=1)
     charging: Optional[bool] = None
     armed: Optional[bool] = None
+    alarm: Optional[str] = Field(default=None, pattern="^(disarmed|exiting|armed|entry)$")
 
 
 class LoginBody(BaseModel):
@@ -220,7 +222,7 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
     # ---------- iPhone: latido y eventos ----------
     @app.post("/api/device/heartbeat", dependencies=[Depends(need_device)])
     def heartbeat(body: HeartbeatBody):
-        app.state.camera.heartbeat(body.battery, body.charging, body.armed)
+        app.state.camera.heartbeat(body.battery, body.charging, body.armed, body.alarm)
         return {"ok": True, "server_time": time.time()}
 
     @app.put("/api/device/events/{event_id}", dependencies=[Depends(need_device)])
@@ -229,7 +231,9 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
             raise HTTPException(status_code=400, detail="Identificador no válido")
         if body.kind not in DEVICE_KINDS:
             raise HTTPException(status_code=400, detail="Tipo de evento no válido")
-        return app.state.events.upsert(event_id, body.kind, body.created)
+        if body.reason is not None and body.reason not in REASONS:
+            raise HTTPException(status_code=400, detail="Motivo no válido")
+        return app.state.events.upsert(event_id, body.kind, body.created, body.reason)
 
     async def put_media(event_id: str, name: str, request: Request):
         events = app.state.events
@@ -249,6 +253,7 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
             app.state.push.notify(
                 event["kind"], event_id=event_id,
                 image=events.signed_url(event_id, "photo"), created=event["created"],
+                reason=event.get("reason"),
             )
         return {"ok": True}
 
@@ -350,6 +355,23 @@ def create_app(manager: LightManager = None, settings: Settings = None) -> FastA
             media_type=upstream.headers.get("content-type", "multipart/x-mixed-replace"),
             headers={"Cache-Control": "no-store"},
         )
+
+    @app.post("/api/alarm/{action}", dependencies=[Depends(need_user)])
+    async def alarm_command(action: str):
+        """Arma o desarma desde la web: se lo pide al iPhone, que es quien manda."""
+        if action not in ("arm", "disarm"):
+            raise HTTPException(status_code=404, detail="Orden desconocida")
+        url, headers = camera_request(f"/alarm/{action}")
+        try:
+            async with httpx.AsyncClient(timeout=6) as client:
+                reply = await client.post(url, headers=headers)
+            state = reply.json().get("state") if reply.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            state = None
+        if state not in ("disarmed", "exiting", "armed", "entry"):
+            raise HTTPException(status_code=503, detail="La cámara no responde")
+        app.state.camera.set_alarm(state)
+        return {"alarm": state}
 
     @app.get("/api/push/key", dependencies=[Depends(need_user)])
     def push_key():

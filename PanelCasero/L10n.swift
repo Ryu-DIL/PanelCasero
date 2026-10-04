@@ -58,6 +58,21 @@ enum L10n {
         "link_down": ["es": "Sin conexión", "ca": "Sense connexió", "en": "Offline", "de": "Offline"],
         "link_unknown": ["es": "Sin datos", "ca": "Sense dades", "en": "No data", "de": "Keine Daten"],
         "events_pending": ["es": "Eventos pendientes de enviar", "ca": "Esdeveniments pendents d'enviar", "en": "Events waiting to upload", "de": "Ausstehende Ereignisse"],
+        "pin_enter": ["es": "Introduce el PIN", "ca": "Introdueix el PIN", "en": "Enter the PIN", "de": "PIN eingeben"],
+        "pin_wrong": ["es": "PIN incorrecto", "ca": "PIN incorrecte", "en": "Wrong PIN", "de": "Falsche PIN"],
+        "pin_first": ["es": "Primero define un PIN en Ajustes", "ca": "Primer defineix un PIN als Ajustos", "en": "Set a PIN in Settings first", "de": "Lege zuerst eine PIN in den Einstellungen fest"],
+        "settings_locked": ["es": "Ajustes protegidos con PIN", "ca": "Configuració protegida amb PIN", "en": "Settings are PIN-protected", "de": "Einstellungen sind per PIN geschützt"],
+        "alarm_section": ["es": "Alarma", "ca": "Alarma", "en": "Alarm", "de": "Alarm"],
+        "pin_new": ["es": "Nuevo PIN (4 a 8 dígitos)", "ca": "Nou PIN (4 a 8 dígits)", "en": "New PIN (4 to 8 digits)", "de": "Neue PIN (4 bis 8 Ziffern)"],
+        "pin_repeat": ["es": "Repite el PIN", "ca": "Repeteix el PIN", "en": "Repeat the PIN", "de": "PIN wiederholen"],
+        "pin_save": ["es": "Guardar PIN", "ca": "Guardar PIN", "en": "Save PIN", "de": "PIN speichern"],
+        "pin_saved": ["es": "PIN guardado", "ca": "PIN guardat", "en": "PIN saved", "de": "PIN gespeichert"],
+        "pin_invalid": ["es": "El PIN debe tener entre 4 y 8 dígitos", "ca": "El PIN ha de tindre entre 4 i 8 dígits", "en": "The PIN must have 4 to 8 digits", "de": "Die PIN muss 4 bis 8 Ziffern haben"],
+        "pin_mismatch": ["es": "Los PIN no coinciden", "ca": "Els PIN no coincideixen", "en": "The PINs do not match", "de": "Die PINs stimmen nicht überein"],
+        "pin_is_set": ["es": "PIN definido", "ca": "PIN definit", "en": "PIN is set", "de": "PIN ist festgelegt"],
+        "pin_not_set": ["es": "Sin PIN", "ca": "Sense PIN", "en": "No PIN", "de": "Keine PIN"],
+        "siren": ["es": "Sirena tras la alerta", "ca": "Sirena després de l'alerta", "en": "Siren after the alert", "de": "Sirene nach dem Alarm"],
+        "siren_off": ["es": "Apagada", "ca": "Apagada", "en": "Off", "de": "Aus"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

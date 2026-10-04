@@ -10,6 +10,8 @@ struct PendingEvent: Codable {
     var clipExpected = true        // se espera un clip de vídeo
     var clipReady = false          // el clip ya está grabado y completo
     var clipDone = false           // el clip ya se subió
+    var reason: String? = nil      // "motion" o "pin" (por qué saltó la alerta)
+    var held: Bool? = nil          // true = guardado pero sin enviar todavía (espera al PIN)
 }
 
 /// Cola de eventos en disco: sobrevive a reinicios y a falta de conexión.
@@ -33,12 +35,16 @@ enum EventStorage {
     private static func jsonURL(_ id: String) -> URL { folder(id).appendingPathComponent("event.json") }
 
     /// Guarda un evento nuevo con su foto.
-    static func begin(id: String, kind: String, created: Date, jpeg: Data) {
+    static func begin(id: String, kind: String, created: Date, jpeg: Data,
+                      held: Bool = false, reason: String? = nil) {
         lock.lock()
         defer { lock.unlock() }
         try? FileManager.default.createDirectory(at: folder(id), withIntermediateDirectories: true)
         try? jpeg.write(to: photoURL(id), options: .atomic)
-        saveEvent(PendingEvent(id: id, kind: kind, created: created.timeIntervalSince1970))
+        var event = PendingEvent(id: id, kind: kind, created: created.timeIntervalSince1970)
+        event.held = held ? true : nil
+        event.reason = reason
+        saveEvent(event)
     }
 
     /// Eventos pendientes, del más antiguo al más reciente.
@@ -47,6 +53,12 @@ enum EventStorage {
         defer { lock.unlock() }
         let names = (try? FileManager.default.contentsOfDirectory(atPath: root.path)) ?? []
         return names.compactMap { loadEvent($0) }.sorted { $0.created < $1.created }
+    }
+
+    static func exists(_ id: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return loadEvent(id) != nil
     }
 
     static func update(_ id: String, _ change: (inout PendingEvent) -> Void) {

@@ -9,6 +9,7 @@ from pathlib import Path
 MEDIA = ("photo", "clip")
 FILE_NAMES = {"photo": "photo.jpg", "clip": "clip.mp4"}
 DEVICE_KINDS = ("alert", "test")          # los que puede crear el iPhone
+REASONS = ("motion", "pin")               # por qué saltó una alerta
 NOTIFY_KINDS = ("alert", "test")          # los que avisan al subir la foto
 MAX_BYTES = {"photo": 3 * 1024 * 1024, "clip": 25 * 1024 * 1024}
 
@@ -49,6 +50,7 @@ class EventStore:
             "kind": row["kind"],
             "photo": bool(row["photo"]),
             "clip": bool(row["clip"]),
+            "reason": row.get("reason"),
         }
 
     def get(self, event_id):
@@ -67,14 +69,14 @@ class EventStore:
         return [self._public(r) for r in rows]
 
     # ---- escritura ----
-    def upsert(self, event_id, kind, created=None):
+    def upsert(self, event_id, kind, created=None, reason=None):
         created = float(created) if created else self.clock()
         # Un evento no puede estar en el futuro.
         created = min(created, self.clock() + 60)
         self.db.execute(
-            "INSERT INTO events(id, created, kind) VALUES(?, ?, ?) "
+            "INSERT INTO events(id, created, kind, reason) VALUES(?, ?, ?, ?) "
             "ON CONFLICT(id) DO NOTHING",
-            (event_id, created, kind),
+            (event_id, created, kind, reason),
         )
         return self.get(event_id)
 

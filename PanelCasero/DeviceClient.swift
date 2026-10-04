@@ -21,16 +21,18 @@ struct DeviceClient {
         return DeviceClient(baseURL: text, token: key)
     }
 
-    func heartbeat(battery: Double?, charging: Bool?) async throws {
+    func heartbeat(battery: Double?, charging: Bool?, alarm: String?) async throws {
         var body: [String: Any] = [:]
         if let battery = battery { body["battery"] = battery }
         if let charging = charging { body["charging"] = charging }
+        if let alarm = alarm { body["alarm"] = alarm }
         let data = try JSONSerialization.data(withJSONObject: body)
         try await send(path: "/api/device/heartbeat", method: "POST", json: data, file: nil, contentType: nil)
     }
 
-    func putEvent(id: String, kind: String, created: Double) async throws {
-        let body: [String: Any] = ["kind": kind, "created": created]
+    func putEvent(id: String, kind: String, created: Double, reason: String?) async throws {
+        var body: [String: Any] = ["kind": kind, "created": created]
+        if let reason = reason { body["reason"] = reason }
         let data = try JSONSerialization.data(withJSONObject: body)
         try await send(path: "/api/device/events/\(id)", method: "PUT", json: data, file: nil, contentType: nil)
     }

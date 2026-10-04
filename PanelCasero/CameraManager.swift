@@ -35,7 +35,7 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private var frameCount = 0
     private var lastPublish = Date.distantPast
     private var lastStreamFrame = Date.distantPast
-    private var pendingEvent: (id: String, kind: String, created: Date)?
+    private var pendingEvent: (id: String, kind: String, created: Date, hold: Bool, reason: String?)?
     private var recordingEventID: String?
     private var lightChangeCountsAsMotion = false
 
@@ -75,19 +75,22 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     // MARK: - Eventos
 
     /// Pide una foto y un clip de 5 s ahora mismo (alarma o prueba).
+    /// Con `hold` el evento se guarda pero no se envía hasta que alguien lo libere.
     /// Se ignora si ya se está grabando otro.
-    func captureEvent(kind: String) {
+    func captureEvent(id: String = UUID().uuidString.lowercased(), kind: String,
+                      hold: Bool = false, reason: String? = nil) {
         queue.async { [weak self] in
             guard let self = self, self.session.isRunning,
                   self.pendingEvent == nil, !self.recorder.isRecording else { return }
-            self.pendingEvent = (UUID().uuidString.lowercased(), kind, Date())
+            self.pendingEvent = (id, kind, Date(), hold, reason)
         }
     }
 
-    private func startEvent(_ request: (id: String, kind: String, created: Date),
+    private func startEvent(_ request: (id: String, kind: String, created: Date, hold: Bool, reason: String?),
                             sample: CMSampleBuffer, buffer: CVPixelBuffer) {
         guard let jpeg = encoder.jpeg(from: buffer, quality: 0.75) else { return }
-        EventStorage.begin(id: request.id, kind: request.kind, created: request.created, jpeg: jpeg)
+        EventStorage.begin(id: request.id, kind: request.kind, created: request.created, jpeg: jpeg,
+                           held: request.hold, reason: request.reason)
 
         let width = CVPixelBufferGetWidth(buffer)
         let height = CVPixelBufferGetHeight(buffer)

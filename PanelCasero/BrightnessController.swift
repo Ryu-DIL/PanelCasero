@@ -25,6 +25,10 @@ final class BrightnessController {
         return changedAt
     }
 
+    /// Con la alarma armada, el movimiento no sube el brillo (para no avisar al intruso).
+    /// Solo se toca desde el hilo principal.
+    var motionRaisesBrightness = true
+
     private let changeLock = NSLock()
     private var changedAt: Date = .distantPast
 
@@ -70,6 +74,7 @@ final class BrightnessController {
     /// Lo llamará el detector de movimiento cuando vea movimiento.
     func motionDetected() {
         runOnMain {
+            guard self.motionRaisesBrightness else { return }
             self.lastMotion = Date()
             self.update()
         }

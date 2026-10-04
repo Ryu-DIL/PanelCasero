@@ -9,6 +9,11 @@ final class DeviceLink: ObservableObject {
     /// nil = aún sin datos o sin configurar.
     @Published private(set) var serverReachable: Bool? = nil
 
+    /// Estado de la alarma que se manda en cada latido (lo pone la app al arrancar).
+    var alarmState: () -> String? = { nil }
+    /// Se llama cuando la foto de un evento ya está en el servidor (el servidor avisa al móvil).
+    var onPhotoUploaded: ((String) -> Void)?
+
     private let settings: AppSettings
     private var loop: Task<Void, Never>?
     private var processing = false
@@ -41,6 +46,11 @@ final class DeviceLink: ObservableObject {
         Task { await processQueue() }
     }
 
+    /// Manda un latido ya (por ejemplo, al armar o desarmar la alarma).
+    func sendHeartbeatSoon() {
+        Task { await heartbeat() }
+    }
+
     private func tick() async {
         await heartbeat()
         await processQueue()
@@ -58,7 +68,7 @@ final class DeviceLink: ObservableObject {
         let level: Double? = device.batteryLevel >= 0 ? Double(device.batteryLevel) : nil
         let charging = device.batteryState == .charging || device.batteryState == .full
         do {
-            try await client.heartbeat(battery: level, charging: charging)
+            try await client.heartbeat(battery: level, charging: charging, alarm: alarmState())
             serverReachable = true
         } catch {
             serverReachable = false
@@ -76,7 +86,7 @@ final class DeviceLink: ObservableObject {
         }
         guard let client = makeClient() else { return }
 
-        for event in EventStorage.list() {
+        for event in EventStorage.list() where event.held != true {
             do {
                 try await process(event, client)
             } catch LightsError.server(let code, _) {
@@ -104,7 +114,8 @@ final class DeviceLink: ObservableObject {
         }
 
         if !event.createdOnServer {
-            try await client.putEvent(id: event.id, kind: event.kind, created: event.created)
+            try await client.putEvent(id: event.id, kind: event.kind, created: event.created,
+                                      reason: event.reason)
             EventStorage.update(event.id) { $0.createdOnServer = true }
             event.createdOnServer = true
         }
@@ -114,6 +125,7 @@ final class DeviceLink: ObservableObject {
                                     file: EventStorage.photoURL(event.id), contentType: "image/jpeg")
             EventStorage.update(event.id) { $0.photoDone = true }
             event.photoDone = true
+            onPhotoUploaded?(event.id)
         }
 
         if event.clipExpected && !event.clipDone {

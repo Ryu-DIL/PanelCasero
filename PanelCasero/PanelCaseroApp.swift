@@ -6,14 +6,19 @@ struct PanelCaseroApp: App {
     @StateObject private var store: LightsStore
     @StateObject private var link: DeviceLink
     @StateObject private var favorites = FavoritesStore()
-    @StateObject private var camera = CameraManager()
+    @StateObject private var camera: CameraManager
+    @StateObject private var alarm: AlarmController
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let settings = AppSettings()
         _settings = StateObject(wrappedValue: settings)
         _store = StateObject(wrappedValue: LightsStore(settings: settings))
-        _link = StateObject(wrappedValue: DeviceLink(settings: settings))
+        let camera = CameraManager()
+        let link = DeviceLink(settings: settings)
+        _camera = StateObject(wrappedValue: camera)
+        _link = StateObject(wrappedValue: link)
+        _alarm = StateObject(wrappedValue: AlarmController(settings: settings, camera: camera, link: link))
     }
 
     var body: some Scene {
@@ -22,6 +27,7 @@ struct PanelCaseroApp: App {
                 .environmentObject(settings)
                 .environmentObject(store)
                 .environmentObject(link)
+                .environmentObject(alarm)
                 .environmentObject(favorites)
                 .environmentObject(camera)
                 .preferredColorScheme(settings.colorScheme)
@@ -57,8 +63,17 @@ struct PanelCaseroApp: App {
         TouchWatcher.install()
 
         let link = self.link
+        let alarm = self.alarm
         camera.onEventsChanged = { [weak link] in
             Task { @MainActor in link?.kick() }
+        }
+        camera.onMotion = { [weak alarm] in
+            Task { @MainActor in alarm?.motionDetected() }
+        }
+        link.alarmState = { [weak alarm] in alarm?.state.rawValue }
+        link.onPhotoUploaded = { [weak alarm] id in alarm?.photoUploaded(id) }
+        StreamServer.shared.alarmHandler = { action, completion in
+            Task { @MainActor in completion(alarm.handleRemote(action)) }
         }
         camera.setSensitivity(settings.motionSensitivity)
         camera.setLightChangeCountsAsMotion(settings.lightChangeIsMotion)

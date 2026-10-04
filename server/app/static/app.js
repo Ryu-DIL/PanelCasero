@@ -17,7 +17,11 @@ const I18N = {
     push_error: 'No se pudieron activar las notificaciones.', push_sent: 'Prueba enviada.',
     language: 'Idioma', logout: 'Cerrar sesión',
     kind_alert: 'Movimiento detectado', kind_test: 'Prueba', kind_offline: 'Cámara desconectada',
-    kind_recovered: 'Cámara reconectada', battery: 'Batería'
+    kind_recovered: 'Cámara reconectada', battery: 'Batería',
+    alarm: 'Alarma', alarm_disarmed: 'Desarmada', alarm_exiting: 'Armando…', alarm_armed: 'Armada',
+    alarm_entry: 'Movimiento detectado: esperando el PIN en el panel', alarm_unknown: 'Sin datos de la cámara',
+    arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La cámara no responde.',
+    kind_alert_pin: 'PIN incorrecto en el panel'
   },
   ca: {
     enter_pin: 'Introdueix el PIN', wrong_pin: 'PIN incorrecte', locked: 'Massa intents. Espera {m} min.',
@@ -34,7 +38,11 @@ const I18N = {
     push_error: 'No s\'han pogut activar les notificacions.', push_sent: 'Prova enviada.',
     language: 'Idioma', logout: 'Tancar la sessió',
     kind_alert: 'Moviment detectat', kind_test: 'Prova', kind_offline: 'Càmera desconnectada',
-    kind_recovered: 'Càmera reconnectada', battery: 'Bateria'
+    kind_recovered: 'Càmera reconnectada', battery: 'Bateria',
+    alarm: 'Alarma', alarm_disarmed: 'Desarmada', alarm_exiting: 'Armant…', alarm_armed: 'Armada',
+    alarm_entry: 'Moviment detectat: esperant el PIN al panell', alarm_unknown: 'Sense dades de la càmera',
+    arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La càmera no respon.',
+    kind_alert_pin: 'PIN incorrecte al panell'
   },
   en: {
     enter_pin: 'Enter the PIN', wrong_pin: 'Wrong PIN', locked: 'Too many attempts. Wait {m} min.',
@@ -51,7 +59,11 @@ const I18N = {
     push_error: 'Could not enable notifications.', push_sent: 'Test sent.',
     language: 'Language', logout: 'Log out',
     kind_alert: 'Motion detected', kind_test: 'Test', kind_offline: 'Camera offline',
-    kind_recovered: 'Camera back online', battery: 'Battery'
+    kind_recovered: 'Camera back online', battery: 'Battery',
+    alarm: 'Alarm', alarm_disarmed: 'Disarmed', alarm_exiting: 'Arming…', alarm_armed: 'Armed',
+    alarm_entry: 'Motion detected: waiting for the PIN on the panel', alarm_unknown: 'No camera data',
+    arm: 'Arm', disarm: 'Disarm', alarm_error: 'The camera is not responding.',
+    kind_alert_pin: 'Wrong PIN on the panel'
   },
   de: {
     enter_pin: 'PIN eingeben', wrong_pin: 'Falsche PIN', locked: 'Zu viele Versuche. Warte {m} Min.',
@@ -68,7 +80,11 @@ const I18N = {
     push_error: 'Benachrichtigungen konnten nicht aktiviert werden.', push_sent: 'Test gesendet.',
     language: 'Sprache', logout: 'Abmelden',
     kind_alert: 'Bewegung erkannt', kind_test: 'Test', kind_offline: 'Kamera offline',
-    kind_recovered: 'Kamera wieder online', battery: 'Akku'
+    kind_recovered: 'Kamera wieder online', battery: 'Akku',
+    alarm: 'Alarm', alarm_disarmed: 'Unscharf', alarm_exiting: 'Wird scharf…', alarm_armed: 'Scharf',
+    alarm_entry: 'Bewegung erkannt: warte auf die PIN am Panel', alarm_unknown: 'Keine Kameradaten',
+    arm: 'Scharf stellen', disarm: 'Unscharf stellen', alarm_error: 'Die Kamera antwortet nicht.',
+    kind_alert_pin: 'Falsche PIN am Panel'
   }
 };
 const LOCALES = { es: 'es-ES', ca: 'ca-ES', en: 'en-GB', de: 'de-DE' };
@@ -225,6 +241,48 @@ document.addEventListener('visibilitychange', () => {
   else if (currentTab === 'live') startLive();
 });
 
+/* ---------- Alarma ---------- */
+let alarmState = null;
+let alarmCameraOnline = false;
+let alarmBusy = false;
+
+function renderAlarm(errorText) {
+  const label = $('alarmState');
+  const button = $('alarmBtn');
+  if (errorText) { label.textContent = errorText; return; }
+  if (!alarmCameraOnline || !alarmState) {
+    label.textContent = t('alarm_unknown');
+    button.disabled = true;
+    button.textContent = t('arm');
+    return;
+  }
+  label.textContent = t('alarm_' + alarmState);
+  button.disabled = alarmBusy;
+  const armed = alarmState !== 'disarmed';
+  button.textContent = armed ? t('disarm') : t('arm');
+  button.classList.toggle('danger', armed);
+  button.classList.toggle('primary', !armed);
+}
+
+async function toggleAlarm() {
+  if (!alarmState || alarmBusy) return;
+  alarmBusy = true;
+  renderAlarm();
+  const action = alarmState === 'disarmed' ? 'arm' : 'disarm';
+  try {
+    const res = await api('/api/alarm/' + action, { method: 'POST' });
+    if (res.ok) {
+      alarmState = (await res.json()).alarm;
+      alarmBusy = false;
+      renderAlarm();
+    } else {
+      alarmBusy = false;
+      renderAlarm(t('alarm_error'));
+      setTimeout(() => renderAlarm(), 3000);
+    }
+  } catch (e) { alarmBusy = false; }
+}
+
 /* ---------- Estado de la cámara ---------- */
 let statusTimer = null;
 
@@ -246,10 +304,17 @@ async function refreshStatus() {
     if (cam.online && typeof cam.battery === 'number') text += ' · ' + Math.round(cam.battery * 100) + '%';
     badge.innerHTML = '<i></i>';
     badge.appendChild(document.createTextNode(text));
+    alarmCameraOnline = cam.known && cam.online;
+    if (!alarmBusy) { alarmState = cam.alarm || (cam.armed === true ? 'armed' : cam.armed === false ? 'disarmed' : null); renderAlarm(); }
   } catch (e) { /* sin datos */ }
 }
 
 /* ---------- Eventos ---------- */
+function eventLabel(event) {
+  if (event.kind === 'alert' && event.reason === 'pin') return t('kind_alert_pin');
+  return t('kind_' + event.kind);
+}
+
 let events = [];
 let reachedEnd = false;
 
@@ -280,7 +345,7 @@ function renderEvent(event) {
   }
   const text = document.createElement('div');
   const title = document.createElement('b');
-  title.textContent = t('kind_' + event.kind) + (event.clip ? ' 🎬' : '');
+  title.textContent = eventLabel(event) + (event.clip ? ' 🎬' : '');
   const date = document.createElement('small');
   date.textContent = formatDate(event.created);
   text.appendChild(title);
@@ -296,7 +361,7 @@ let viewing = null;
 
 function openViewer(event) {
   viewing = event;
-  $('viewerTitle').textContent = t('kind_' + event.kind) + ' · ' + formatDate(event.created);
+  $('viewerTitle').textContent = eventLabel(event) + ' · ' + formatDate(event.created);
   const photo = $('viewerPhoto');
   photo.hidden = !event.photo;
   if (event.photo) photo.src = '/api/events/' + event.id + '/photo';
@@ -413,6 +478,7 @@ async function boot() {
   $('viewerDelete').addEventListener('click', deleteViewing);
   $('pushEnable').addEventListener('click', enablePush);
   $('pushTest').addEventListener('click', sendTest);
+  $('alarmBtn').addEventListener('click', toggleAlarm);
   $('logout').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
     showLogin();
@@ -421,6 +487,7 @@ async function boot() {
     lang = event.target.value;
     localStorage.setItem('lang', lang);
     applyI18n();
+    renderAlarm();
     refreshStatus();
     refreshPushState();
     if (currentTab === 'events') loadEvents(true);

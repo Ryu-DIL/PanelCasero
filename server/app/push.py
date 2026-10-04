@@ -18,6 +18,12 @@ MESSAGES = {
         "en": ("Motion detected", "Motion was detected in the room."),
         "de": ("Bewegung erkannt", "Im Raum wurde eine Bewegung erkannt."),
     },
+    "alert_pin": {
+        "es": ("PIN incorrecto en el panel", "Se han introducido varios PIN incorrectos en el panel."),
+        "ca": ("PIN incorrecte al panell", "S'han introduït diversos PIN incorrectes al panell."),
+        "en": ("Wrong PIN on the panel", "Several wrong PINs were entered on the panel."),
+        "de": ("Falsche PIN am Panel", "Am Panel wurden mehrere falsche PINs eingegeben."),
+    },
     "test": {
         "es": ("Notificación de prueba", "Las notificaciones funcionan correctamente."),
         "ca": ("Notificació de prova", "Les notificacions funcionen correctament."),
@@ -79,18 +85,19 @@ class PushService:
         return len(self.db.query("SELECT endpoint FROM push_subs"))
 
     # ---- envío ----
-    def notify(self, kind, event_id=None, image=None, created=None):
+    def notify(self, kind, event_id=None, image=None, created=None, reason=None):
         """Avisa a todos los dispositivos suscritos (en segundo plano si procede)."""
         if self.background:
             threading.Thread(
-                target=self._notify_all, args=(kind, event_id, image, created), daemon=True
+                target=self._notify_all, args=(kind, event_id, image, created, reason), daemon=True
             ).start()
         else:
-            self._notify_all(kind, event_id, image, created)
+            self._notify_all(kind, event_id, image, created, reason)
 
-    def _notify_all(self, kind, event_id, image, created):
+    def _notify_all(self, kind, event_id, image, created, reason=None):
+        key = "alert_pin" if kind == "alert" and reason == "pin" else kind
         for sub in self.db.query("SELECT * FROM push_subs"):
-            title, body = MESSAGES[kind].get(sub["lang"], MESSAGES[kind]["es"])
+            title, body = MESSAGES[key].get(sub["lang"], MESSAGES[key]["es"])
             payload = {
                 "kind": kind,
                 "title": title,

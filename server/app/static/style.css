@@ -74,3 +74,6 @@ select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(
 .viewer-box { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
 .viewer-box img, .viewer-box video { width: 100%; border-radius: 10px; background: #000; }
 .viewer-box .muted { color: #cbd5e1; }
+
+.alarm { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.btn:disabled { opacity: .5; }

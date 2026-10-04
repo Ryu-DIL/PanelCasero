@@ -11,7 +11,7 @@ Proyecto de código abierto bajo licencia MIT.
 - [x] Fase 2: luces Tuya (tocar = encender/apagar, mantener = color, brillo, blanco y favoritos) — servidor en `server/` y app conectada
 - [x] Fase 3: cámara frontal y detección de movimiento (sensibilidad ajustable; sube el brillo al detectar movimiento)
 - [x] Fase 4: servidor y web (PWA) con notificaciones y directo; la app del iPhone graba foto + clip de 5 s, los sube (con cola sin conexión), manda latidos y sirve el directo
-- [ ] Fase 5: alarma con PIN
+- [x] Fase 5: alarma con PIN (candado en la cámara, 60 s de salida y de entrada, sirena tras el aviso, armar/desarmar desde la web)
 - [ ] Fase 6: previsión del tiempo y pulido
 
 ## Cómo se compila

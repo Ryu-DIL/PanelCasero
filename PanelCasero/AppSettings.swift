@@ -1,3 +1,4 @@
+import CryptoKit
 import SwiftUI
 
 enum AppLanguage: String, CaseIterable, Identifiable {
@@ -37,6 +38,10 @@ final class AppSettings: ObservableObject {
     private static let lightIconsKey = "lightIcons"
     private static let sensitivityKey = "motionSensitivity"
     private static let lightChangeKey = "lightChangeIsMotion"
+    private static let pinHashKey = "alarmPINHash"
+    private static let pinSaltKey = "alarmPINSalt"
+    private static let pinLengthKey = "alarmPINLength"
+    private static let sirenKey = "sirenSeconds"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -66,6 +71,24 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(lightChangeIsMotion, forKey: Self.lightChangeKey) }
     }
 
+    /// El PIN no se guarda: solo una huella (hash) con sal.
+    @Published private(set) var alarmPINHash: String {
+        didSet { UserDefaults.standard.set(alarmPINHash, forKey: Self.pinHashKey) }
+    }
+
+    @Published private(set) var alarmPINSalt: String {
+        didSet { UserDefaults.standard.set(alarmPINSalt, forKey: Self.pinSaltKey) }
+    }
+
+    @Published private(set) var alarmPINLength: Int {
+        didSet { UserDefaults.standard.set(alarmPINLength, forKey: Self.pinLengthKey) }
+    }
+
+    /// Segundos que suena la sirena tras una alerta (0 = apagada).
+    @Published var sirenSeconds: Int {
+        didSet { UserDefaults.standard.set(sirenSeconds, forKey: Self.sirenKey) }
+    }
+
     @Published var lightNames: [String: String] {
         didSet { UserDefaults.standard.set(lightNames, forKey: Self.lightNamesKey) }
     }
@@ -83,8 +106,33 @@ final class AppSettings: ObservableObject {
         let savedSensitivity = defaults.integer(forKey: Self.sensitivityKey)
         motionSensitivity = savedSensitivity == 0 ? 5 : min(10, max(1, savedSensitivity))
         lightChangeIsMotion = defaults.bool(forKey: Self.lightChangeKey)
+        alarmPINHash = defaults.string(forKey: Self.pinHashKey) ?? ""
+        alarmPINSalt = defaults.string(forKey: Self.pinSaltKey) ?? ""
+        let savedLength = defaults.integer(forKey: Self.pinLengthKey)
+        alarmPINLength = savedLength == 0 ? 4 : min(8, max(4, savedLength))
+        sirenSeconds = defaults.object(forKey: Self.sirenKey) == nil ? 30 : defaults.integer(forKey: Self.sirenKey)
         lightNames = (defaults.dictionary(forKey: Self.lightNamesKey) as? [String: String]) ?? [:]
         lightIcons = (defaults.dictionary(forKey: Self.lightIconsKey) as? [String: String]) ?? [:]
+    }
+
+    // MARK: - PIN de la alarma y de los ajustes
+
+    var hasPIN: Bool { !alarmPINHash.isEmpty }
+
+    func setPIN(_ pin: String) {
+        let salt = UUID().uuidString
+        alarmPINSalt = salt
+        alarmPINHash = Self.hash(pin, salt: salt)
+        alarmPINLength = pin.count
+    }
+
+    func verifyPIN(_ pin: String) -> Bool {
+        guard hasPIN else { return false }
+        return Self.hash(pin, salt: alarmPINSalt) == alarmPINHash
+    }
+
+    private static func hash(_ pin: String, salt: String) -> String {
+        SHA256.hash(data: Data((salt + pin).utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
     var colorScheme: ColorScheme {

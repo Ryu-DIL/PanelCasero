@@ -20,13 +20,17 @@ class CameraMonitor:
         self.battery = None
         self.charging = None
         self.armed = None
+        self.alarm = None             # disarmed | exiting | armed | entry
 
-    def heartbeat(self, battery=None, charging=None, armed=None):
+    def heartbeat(self, battery=None, charging=None, armed=None, alarm=None):
         recovered = False
         with self._lock:
             self.last_seen = self.clock()
             self.battery = battery
             self.charging = charging
+            if alarm is not None:
+                self.alarm = alarm
+                armed = alarm != "disarmed"
             self.armed = armed
             if self.online is False:
                 recovered = True
@@ -59,4 +63,11 @@ class CameraMonitor:
                 "battery": self.battery,
                 "charging": self.charging,
                 "armed": self.armed,
+                "alarm": self.alarm,
             }
+
+    def set_alarm(self, alarm):
+        """El iPhone acaba de contestar a una orden de armar o desarmar."""
+        with self._lock:
+            self.alarm = alarm
+            self.armed = alarm != "disarmed"

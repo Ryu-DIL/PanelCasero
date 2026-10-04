@@ -43,6 +43,9 @@ class Database:
                 );
                 """
             )
+            columns = [row["name"] for row in self._conn.execute("PRAGMA table_info(events)")]
+            if "reason" not in columns:       # bases creadas antes de la alarma
+                self._conn.execute("ALTER TABLE events ADD COLUMN reason TEXT")
             self._conn.commit()
 
     def execute(self, sql, params=()):

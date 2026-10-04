@@ -20,6 +20,10 @@ final class StreamServer {
     private var clients: [ObjectIdentifier: Client] = [:]
     private var latest: Data?
 
+    /// Atiende las órdenes de la alarma que llegan desde el servidor ("arm", "disarm", "state").
+    /// Debe responder con el estado resultante. Se asigna una vez, antes de `start()`.
+    var alarmHandler: ((String, @escaping (String?) -> Void) -> Void)?
+
     private let stateLock = NSLock()
     private var viewerCount = 0
     private var token = ""
@@ -130,10 +134,11 @@ final class StreamServer {
     private func respond(to connection: NWConnection, head: String) {
         let lines = head.components(separatedBy: "\r\n")
         let parts = (lines.first ?? "").split(separator: " ")
-        guard parts.count >= 2, parts[0] == "GET" else {
+        guard parts.count >= 2, parts[0] == "GET" || parts[0] == "POST" else {
             reply(connection, status: "405 Method Not Allowed", body: Data(), type: "text/plain")
             return
         }
+        let method = String(parts[0])
         let path = String(parts[1]).components(separatedBy: "?")[0]
 
         var authorization = ""
@@ -147,6 +152,26 @@ final class StreamServer {
         }
 
         switch path {
+        case "/alarm", "/alarm/arm", "/alarm/disarm":
+            let action = path == "/alarm" ? "state" : String(path.dropFirst("/alarm/".count))
+            guard action == "state" || method == "POST" else {
+                reply(connection, status: "405 Method Not Allowed", body: Data(), type: "text/plain")
+                return
+            }
+            guard let handler = alarmHandler else {
+                reply(connection, status: "503 Service Unavailable", body: Data(), type: "text/plain")
+                return
+            }
+            handler(action) { [weak self] state in
+                self?.queue.async {
+                    guard let state = state else {
+                        self?.reply(connection, status: "503 Service Unavailable", body: Data(), type: "text/plain")
+                        return
+                    }
+                    self?.reply(connection, status: "200 OK", body: Data("{\"state\":\"\(state)\"}".utf8),
+                                type: "application/json")
+                }
+            }
         case "/stream":
             startStream(connection)
         case "/snapshot.jpg":
