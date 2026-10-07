@@ -1,40 +1,51 @@
 import SwiftUI
 
-/// Previsión de hoy: icono, temperatura máxima/mínima y probabilidad de lluvia.
+/// Previsión de hoy en una sola línea: icono, máxima, mínima y probabilidad de lluvia.
 struct WeatherPanel: View {
     @EnvironmentObject var weather: WeatherService
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: weather.forecast?.symbolName ?? "cloud.fill")
-                .font(.system(size: 34))
+                .font(.system(size: 24))
                 .symbolRenderingMode(.multicolor)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(temperatureText)
-                    .font(.system(size: 20, weight: .semibold))
-                    .monospacedDigit()
-                HStack(spacing: 4) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 12))
-                        .foregroundColor(.blue)
-                    Text(rainText)
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
+                .frame(width: 32)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(high)
+                    .font(.numeral(26, weight: .regular))
+                    .foregroundColor(Theme.text)
+                Text(low)
+                    .font(.numeral(20, weight: .regular))
+                    .foregroundColor(Theme.textMuted)
             }
-            Spacer()
+            .monospacedDigit()
+            Spacer(minLength: 4)
+            HStack(spacing: 4) {
+                Image(systemName: "drop.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(red: 0.36, green: 0.62, blue: 0.95))
+                Text(rain)
+                    .font(.label(14))
+                    .monospacedDigit()
+                    .foregroundColor(Theme.textMuted)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .card()
+        .padding(.vertical, 8)
+        .overlay(Rectangle().fill(Theme.hairline).frame(height: 1), alignment: .top)
     }
 
-    private var temperatureText: String {
-        guard let forecast = weather.forecast else { return "--° / --°" }
-        return "\(Int(forecast.tempMax.rounded()))° / \(Int(forecast.tempMin.rounded()))°"
+    private var high: String {
+        guard let forecast = weather.forecast else { return "--°" }
+        return "\(Int(forecast.tempMax.rounded()))°"
     }
 
-    private var rainText: String {
+    private var low: String {
+        guard let forecast = weather.forecast else { return "--°" }
+        return "\(Int(forecast.tempMin.rounded()))°"
+    }
+
+    private var rain: String {
         guard let chance = weather.forecast?.rainChance else { return "--%" }
-        return "\(chance) %"
+        return "\(chance)%"
     }
 }

@@ -43,6 +43,11 @@ final class ClipRecorder {
     /// Añade un fotograma. Cuando se cumple la duración, cierra el archivo y llama a `completion`.
     func append(_ sample: CMSampleBuffer, completion: @escaping (Bool) -> Void) {
         guard isRecording, let writer = writer, let input = input else { return }
+        if writer.status == .failed {
+            cancel()
+            completion(false)
+            return
+        }
         let time = CMSampleBufferGetPresentationTimeStamp(sample)
         if startTime == nil {
             writer.startSession(atSourceTime: time)

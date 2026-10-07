@@ -22,6 +22,8 @@ final class AlarmController: ObservableObject {
     static let entrySeconds: UInt64 = 60
     static let pauseSeconds: TimeInterval = 120
     static let maxWrongPINs = 3
+    /// Los PIN erróneos solo suman si ocurren dentro de esta ventana.
+    static let wrongPINWindow: TimeInterval = 120
     private static let armedKey = "alarmArmed"
 
     private let settings: AppSettings
@@ -37,6 +39,7 @@ final class AlarmController: ObservableObject {
     private var sirenEventID: String?
     private var pauseUntil = Date.distantPast
     private var wrongPINs = 0
+    private var firstWrongAt = Date.distantPast
 
     init(settings: AppSettings, camera: CameraManager, link: DeviceLink) {
         self.settings = settings
@@ -45,6 +48,19 @@ final class AlarmController: ObservableObject {
         // Si la app se reinicia (apagón...) estando armada, sigue armada.
         state = UserDefaults.standard.bool(forKey: Self.armedKey) ? .armed : .disarmed
         applyBrightnessRule()
+        resolveHeldEventsOnLaunch()
+    }
+
+    /// Si la app se cerró con una entrada en curso, su foto retenida no puede quedarse
+    /// guardada para siempre: armada, se envía como alerta; desarmada, se descarta.
+    private func resolveHeldEventsOnLaunch() {
+        for event in EventStorage.list() where event.held == true {
+            if state == .disarmed {
+                EventStorage.remove(event.id)
+            } else {
+                EventStorage.update(event.id) { $0.held = nil }
+            }
+        }
     }
 
     var isArmed: Bool { state != .disarmed }
@@ -65,6 +81,7 @@ final class AlarmController: ObservableObject {
 
     func arm() {
         guard state == .disarmed else { return }
+        wrongPINs = 0
         set(.exiting)
         exitTask?.cancel()
         exitTask = Task { [weak self] in
@@ -114,6 +131,11 @@ final class AlarmController: ObservableObject {
             wrongPINs = 0
             return true
         }
+        let now = Date()
+        if now.timeIntervalSince(firstWrongAt) > Self.wrongPINWindow {
+            wrongPINs = 0
+        }
+        if wrongPINs == 0 { firstWrongAt = now }
         wrongPINs += 1
         if wrongPINs >= Self.maxWrongPINs {
             wrongPINs = 0

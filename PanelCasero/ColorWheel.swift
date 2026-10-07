@@ -25,14 +25,18 @@ struct ColorWheel: View {
                     .fill(RadialGradient(gradient: Gradient(colors: [Color.white, Color.white.opacity(0)]),
                                          center: .center, startRadius: 0, endRadius: radius))
                 Circle()
+                    .strokeBorder(Theme.hairline, lineWidth: 1)
+                Circle()
                     .fill(Color(hue: hue / 360.0, saturation: saturation / 100.0, brightness: 1))
-                    .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                    .frame(width: 26, height: 26)
-                    .shadow(radius: 2)
+                    .overlay(Circle().strokeBorder(Color.white, lineWidth: 3))
+                    .overlay(Circle().strokeBorder(Color.black.opacity(0.25), lineWidth: 1).padding(-1))
+                    .frame(width: 28, height: 28)
+                    .shadow(color: Color.black.opacity(0.35), radius: 3, y: 1)
                     .position(x: radius + CGFloat(cos(angle)) * distance,
                               y: radius + CGFloat(sin(angle)) * distance)
             }
             .frame(width: size, height: size)
+            .shadow(color: Color.black.opacity(0.35), radius: 10, y: 4)
             .contentShape(Circle())
             .gesture(
                 DragGesture(minimumDistance: 0)

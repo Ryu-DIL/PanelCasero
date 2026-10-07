@@ -5,85 +5,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>PanelCasero</title>
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#101318">
   <link rel="icon" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <main id="login" class="login" hidden>
-    <h1>PanelCasero</h1>
-    <p id="loginMsg" class="muted" data-i18n="enter_pin"></p>
-    <div id="dots" class="dots"></div>
+    <h1 class="wordmark">PanelCasero</h1>
+    <p id="loginMsg" class="muted" data-i18n="enter_pin" role="status"></p>
+    <div id="dots" class="dots" aria-hidden="true"></div>
     <div id="pad" class="pad"></div>
   </main>
 
   <div id="app" hidden>
-    <header>
-      <strong>PanelCasero</strong>
-      <span id="camState" class="badge"></span>
+    <header class="top">
+      <strong class="wordmark small">PanelCasero</strong>
+      <span id="camState" class="status" role="status"></span>
     </header>
 
     <section id="tab-live" class="tab">
       <div class="live-box">
         <img id="live" alt="">
         <p id="liveMsg" class="live-msg"></p>
+        <div id="liveChips" class="chips"></div>
       </div>
-      <div class="card alarm">
-        <div>
-          <b data-i18n="alarm"></b><br>
-          <span id="alarmState" class="muted"></span>
-        </div>
-        <button id="alarmBtn" class="btn primary" disabled></button>
+
+      <div id="alarm" class="alarm">
+        <span class="eyebrow" data-i18n="alarm"></span>
+        <p id="alarmState" class="alarm-word" aria-live="polite"></p>
+        <p id="alarmHint" class="muted alarm-hint"></p>
+        <button id="alarmBtn" class="btn wide" disabled></button>
       </div>
     </section>
 
     <section id="tab-events" class="tab" hidden>
       <div id="events" class="events"></div>
-      <p id="noEvents" class="muted center" data-i18n="no_events" hidden></p>
-      <button id="more" class="btn" data-i18n="load_more" hidden></button>
+      <p id="noEvents" class="muted center empty" data-i18n="no_events" hidden></p>
+      <button id="more" class="btn wide quiet" data-i18n="load_more" hidden></button>
     </section>
 
     <section id="tab-settings" class="tab" hidden>
-      <div class="card">
-        <h2 data-i18n="notifications"></h2>
+      <div class="group">
+        <h2 class="eyebrow" data-i18n="notifications"></h2>
         <p id="pushState" class="muted"></p>
         <div class="row">
           <button id="pushEnable" class="btn primary" data-i18n="enable_notifications"></button>
           <button id="pushTest" class="btn" data-i18n="send_test"></button>
         </div>
       </div>
-      <div class="card">
-        <h2 data-i18n="language"></h2>
-        <select id="langSelect">
+      <div class="group">
+        <h2 class="eyebrow" data-i18n="language"></h2>
+        <select id="langSelect" aria-label="Idioma">
           <option value="es">Español</option>
           <option value="ca">Valencià</option>
           <option value="en">English</option>
           <option value="de">Deutsch</option>
         </select>
       </div>
-      <div class="card">
+      <div class="group">
         <button id="logout" class="btn danger" data-i18n="logout"></button>
       </div>
     </section>
 
-    <nav id="nav">
-      <button data-tab="live" data-i18n="tab_live"></button>
-      <button data-tab="events" data-i18n="tab_events"></button>
-      <button data-tab="settings" data-i18n="tab_settings"></button>
+    <nav id="nav" aria-label="Principal">
+      <button data-tab="live">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10.5 5-3v9l-5-3"/></svg>
+        <span data-i18n="tab_live"></span>
+      </button>
+      <button data-tab="events">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+        <span data-i18n="tab_events"></span>
+      </button>
+      <button data-tab="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h8M16 8h4M4 16h4M12 16h8"/><circle cx="14" cy="8" r="2"/><circle cx="10" cy="16" r="2"/></svg>
+        <span data-i18n="tab_settings"></span>
+      </button>
     </nav>
   </div>
 
-  <div id="viewer" class="viewer" hidden>
+  <div id="viewer" class="viewer" hidden role="dialog" aria-modal="true">
     <div class="viewer-box">
-      <p id="viewerTitle" class="muted"></p>
+      <div class="viewer-head">
+        <p id="viewerTitle"></p>
+        <button id="viewerClose" class="btn quiet" data-i18n="close"></button>
+      </div>
       <img id="viewerPhoto" alt="">
       <video id="viewerVideo" controls playsinline hidden></video>
       <p id="viewerNote" class="muted" hidden></p>
-      <div class="row">
-        <button id="viewerDelete" class="btn danger" data-i18n="delete"></button>
-        <button id="viewerClose" class="btn" data-i18n="close"></button>
-      </div>
+      <button id="viewerDelete" class="btn danger" data-i18n="delete"></button>
     </div>
   </div>
 

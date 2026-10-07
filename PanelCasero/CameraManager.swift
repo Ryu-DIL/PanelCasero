@@ -11,8 +11,6 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     }
 
     @Published private(set) var state: State = .idle
-    /// Cantidad de movimiento reciente (0...1), para el indicador de Ajustes.
-    @Published private(set) var motionScore: Double = 0
     /// true mientras hay movimiento sostenido.
     @Published private(set) var motionActive = false
     /// true si el iPhone está caliente y la cámara trabaja a medio gas para enfriarse.
@@ -33,7 +31,8 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     // Todo lo siguiente se usa solo desde `queue`.
     private var configured = false
     private var videoOutput: AVCaptureVideoDataOutput?
-    private var videoOrientation: AVCaptureVideoOrientation = .portrait
+    private var videoOrientation: AVCaptureVideoOrientation = .portrait      // la que se quiere
+    private var appliedOrientation: AVCaptureVideoOrientation?                // la que tiene la cámara
     private var frameCount = 0
     private var lastPublish = Date.distantPast
     private var lastStreamFrame = Date.distantPast
@@ -42,6 +41,10 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
     private var lightChangeCountsAsMotion = false
     /// 0 = normal, 1 = iPhone caliente, 2 = iPhone muy caliente.
     private var loadLevel = 0
+    /// Vigilante: si la cámara deja de dar imágenes (llamada, otra app, error), se reinicia sola.
+    private var wantsRunning = false
+    private var lastFrameAt = Date()
+    private var watchdog: DispatchSourceTimer?
 
     /// Segundos que se ignora la cámara mientras la imagen se adapta a un cambio de luz.
     private let settleSeconds: TimeInterval = 2.0
@@ -68,8 +71,9 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         queue.async { [weak self] in
             self?.loadLevel = level
         }
+        let reduced = level > 0
         DispatchQueue.main.async { [weak self] in
-            self?.reducedMode = level > 0
+            if self?.reducedMode != reduced { self?.reducedMode = reduced }
         }
     }
 
@@ -92,14 +96,28 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         queue.async { [weak self] in
             guard let self = self, orientation != self.videoOrientation else { return }
             self.videoOrientation = orientation
-            self.applyOrientation()
+            // Se espera a que termine el giro de la pantalla antes de tocar la cámara.
+            self.queue.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.applyOrientation()
+            }
         }
     }
 
     private func applyOrientation() {
-        guard let connection = videoOutput?.connection(with: .video),
+        guard appliedOrientation != videoOrientation,
+              let connection = videoOutput?.connection(with: .video),
               connection.isVideoOrientationSupported else { return }
+        // No se gira a mitad de un clip: se reintenta un poco después.
+        if recorder.isRecording || pendingEvent != nil {
+            queue.asyncAfter(deadline: .now() + 1) { [weak self] in
+                self?.applyOrientation()
+            }
+            return
+        }
+        session.beginConfiguration()
         connection.videoOrientation = videoOrientation
+        session.commitConfiguration()
+        appliedOrientation = videoOrientation
         analyzer.reset()
     }
 
@@ -185,10 +203,12 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             }
             self.pendingEvent = nil
             self.analyzer.reset()
+            self.wantsRunning = false
+            self.stopWatchdog()
             DispatchQueue.main.async {
                 self.state = .idle
-                self.motionActive = false
-                self.motionScore = 0
+                if self.motionActive { self.motionActive = false }
+                MotionMeter.shared.set(0)
             }
         }
     }
@@ -206,8 +226,37 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
             if !self.session.isRunning {
                 self.session.startRunning()
             }
+            self.wantsRunning = true
+            self.lastFrameAt = Date()
+            self.startWatchdog()
             DispatchQueue.main.async { self.state = .running }
         }
+    }
+
+    private func startWatchdog() {
+        guard watchdog == nil else { return }
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 5, repeating: 5)
+        timer.setEventHandler { [weak self] in
+            self?.restartIfStalled()
+        }
+        timer.resume()
+        watchdog = timer
+    }
+
+    private func stopWatchdog() {
+        watchdog?.cancel()
+        watchdog = nil
+    }
+
+    private func restartIfStalled() {
+        guard wantsRunning, configured else { return }
+        let stalled = Date().timeIntervalSince(lastFrameAt) > 10
+        guard !session.isRunning || stalled else { return }
+        session.stopRunning()
+        lastFrameAt = Date()
+        analyzer.reset()
+        session.startRunning()
     }
 
     private func configure() -> Bool {
@@ -251,6 +300,7 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
                        from connection: AVCaptureConnection) {
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         frameCount += 1
+        lastFrameAt = Date()
 
         // 1. Clip en grabación.
         if recorder.isRecording {
@@ -299,9 +349,11 @@ final class CameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputS
         let now = Date()
         if now.timeIntervalSince(lastPublish) >= 0.25 {
             lastPublish = now
+            let score = result.score
+            let moving = result.moving
             DispatchQueue.main.async { [weak self] in
-                self?.motionScore = result.score
-                self?.motionActive = result.moving
+                MotionMeter.shared.set(score)
+                if self?.motionActive != moving { self?.motionActive = moving }
             }
         }
     }
@@ -329,6 +381,9 @@ final class PreviewView: UIView {
     /// Se avisa cuando cambia la orientación de la pantalla.
     var onOrientation: ((AVCaptureVideoOrientation) -> Void)?
 
+    private var previewOrientation: AVCaptureVideoOrientation?
+    private var reportedOrientation: AVCaptureVideoOrientation?
+
     var previewLayer: AVCaptureVideoPreviewLayer {
         // layerClass garantiza el tipo.
         return layer as! AVCaptureVideoPreviewLayer // swiftlint:disable:this force_cast
@@ -349,10 +404,17 @@ final class PreviewView: UIView {
         case .portraitUpsideDown: orientation = .portraitUpsideDown
         default: orientation = .portrait
         }
-        if let connection = previewLayer.connection, connection.isVideoOrientationSupported {
+        // Solo se toca la cámara cuando la orientación cambia de verdad: esta función se llama
+        // en cada pasada de maquetación y cambiar la orientación de la conexión es caro.
+        if previewOrientation != orientation,
+           let connection = previewLayer.connection, connection.isVideoOrientationSupported {
             connection.videoOrientation = orientation
+            previewOrientation = orientation
         }
-        onOrientation?(orientation)
+        if reportedOrientation != orientation {
+            reportedOrientation = orientation
+            onOrientation?(orientation)
+        }
     }
 }
 

@@ -11,6 +11,9 @@ class Database:
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(str(path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        # WAL: las lecturas no esperan a las escrituras y se hacen menos sincronizaciones a disco.
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=NORMAL")
         self._create()
 
     def _create(self):

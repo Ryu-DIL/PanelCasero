@@ -17,6 +17,7 @@ final class DeviceLink: ObservableObject {
     private let settings: AppSettings
     private var loop: Task<Void, Never>?
     private var processing = false
+    private var passRequested = false      // llegó trabajo nuevo mientras se enviaba
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -60,7 +61,7 @@ final class DeviceLink: ObservableObject {
 
     private func heartbeat() async {
         guard let client = makeClient() else {
-            serverReachable = nil
+            if serverReachable != nil { serverReachable = nil }
             return
         }
         let device = UIDevice.current
@@ -70,9 +71,9 @@ final class DeviceLink: ObservableObject {
         do {
             try await client.heartbeat(battery: level, charging: charging, alarm: alarmState(),
                                        thermal: Self.thermalName())
-            serverReachable = true
+            if serverReachable != true { serverReachable = true }
         } catch {
-            serverReachable = false
+            if serverReachable != false { serverReachable = false }
         }
     }
 
@@ -90,13 +91,25 @@ final class DeviceLink: ObservableObject {
     // MARK: - Cola de eventos
 
     func processQueue() async {
-        if processing { return }
+        if processing {
+            passRequested = true
+            return
+        }
         processing = true
         defer {
             processing = false
-            pendingCount = EventStorage.list().count
+            let count = EventStorage.list().count
+            if count != pendingCount { pendingCount = count }
         }
+        repeat {
+            passRequested = false
+            await runPass()
+        } while passRequested
+    }
+
+    private func runPass() async {
         guard let client = makeClient() else { return }
+        EventStorage.trim(maxEvents: 60)
 
         for event in EventStorage.list() where event.held != true {
             do {

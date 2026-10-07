@@ -10,9 +10,12 @@ struct PanelCaseroApp: App {
     @StateObject private var alarm: AlarmController
     @StateObject private var weather: WeatherService
     @Environment(\.scenePhase) private var scenePhase
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
+        Theme.applyAppearance()
         let settings = AppSettings()
+        OrientationLock.apply(settings.orientationMode)
         _settings = StateObject(wrappedValue: settings)
         _store = StateObject(wrappedValue: LightsStore(settings: settings))
         let camera = CameraManager()
@@ -23,16 +26,15 @@ struct PanelCaseroApp: App {
         _weather = StateObject(wrappedValue: WeatherService(settings: settings))
     }
 
+    private var environment: AppEnvironment {
+        AppEnvironment(settings: settings, store: store, link: link, alarm: alarm,
+                       weather: weather, favorites: favorites, camera: camera)
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environmentObject(settings)
-                .environmentObject(store)
-                .environmentObject(link)
-                .environmentObject(alarm)
-                .environmentObject(weather)
-                .environmentObject(favorites)
-                .environmentObject(camera)
+            ContentView(env: environment)
+                .injecting(environment)
                 .preferredColorScheme(settings.colorScheme)
                 .onAppear { setup() }
                 .onChange(of: settings.motionSensitivity) { value in
@@ -48,12 +50,20 @@ struct PanelCaseroApp: App {
                 .onChange(of: settings.serverURL) { _ in
                     link.kick()
                 }
+                .onChange(of: settings.orientationMode) { mode in
+                    OrientationLock.apply(mode)
+                }
+                .onChange(of: settings.idleDim) { value in
+                    BrightnessController.shared.idleOverlay = value
+                }
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active {
-                resume()
-            } else {
-                pause()
+            // "inactive" ocurre con avisos del sistema o al abrir el centro de control:
+            // la cámara y la alarma no deben pararse por eso.
+            switch phase {
+            case .active: resume()
+            case .background: pause()
+            default: break
             }
         }
     }
@@ -64,6 +74,8 @@ struct PanelCaseroApp: App {
         // La pantalla nunca se apaga sola.
         UIApplication.shared.isIdleTimerDisabled = true
         TouchWatcher.install()
+        OrientationLock.apply(settings.orientationMode)
+        BrightnessController.shared.idleOverlay = settings.idleDim
 
         let link = self.link
         let alarm = self.alarm
@@ -86,6 +98,7 @@ struct PanelCaseroApp: App {
 
     @MainActor
     private func resume() {
+        UIApplication.shared.isIdleTimerDisabled = true
         BrightnessController.shared.start()
         store.startPolling()
         link.start()

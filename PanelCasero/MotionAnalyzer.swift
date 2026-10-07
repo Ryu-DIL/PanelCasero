@@ -2,6 +2,11 @@ import CoreVideo
 
 /// Detecta movimiento comparando fotogramas muy reducidos (rejilla de 32×24)
 /// con el fotograma anterior y con un "fondo" que se actualiza despacio.
+///
+/// Cada celda se mide RELATIVA al brillo medio de la imagen (no en valores absolutos):
+/// así la autoexposición de la cámara (que sube o baja la ganancia cuando la pantalla
+/// cambia de brillo) no se confunde con movimiento. Además, el umbral se adapta al
+/// ruido medido, para que de noche no salten falsos avisos.
 /// Se usa siempre desde la misma cola de la cámara, por eso no necesita bloqueos.
 final class MotionAnalyzer {
     static let cols = 32
@@ -26,13 +31,18 @@ final class MotionAnalyzer {
     private static let lightJumpAbsolute: Float = 8
     private static let lightJumpRelative: Float = 0.12
 
+    /// Denominador mínimo al normalizar (evita dividir por casi cero a oscuras).
+    private static let minReference: Float = 12
+    /// El umbral nunca baja de este múltiplo del ruido típico entre dos fotogramas.
+    private static let noiseFactor: Float = 4.5
+
     private var previous: [Float] = []
     private var background: [Float] = []
     private var previousMean: Float? = nil
     private var streak = 0
 
-    /// Diferencia de brillo (0...255) que debe cambiar una celda para contar.
-    private var lumaThreshold: Float { 24 - 1.8 * Float(sensitivity) }
+    /// Cambio relativo (en % del brillo medio) que debe tener una celda para contar.
+    private var baseThreshold: Float { 24 - 1.8 * Float(sensitivity) }
     /// Fracción de celdas que deben cambiar para considerar que hay movimiento.
     private var minFraction: Double { 0.06 - 0.005 * Double(sensitivity) }
 
@@ -48,8 +58,6 @@ final class MotionAnalyzer {
         guard var current = grid(from: buffer) else {
             return Result(score: 0, moving: false)
         }
-        // Se resta el brillo medio para ignorar cambios de luz generales
-        // (autoexposición, la propia pantalla, nubes...).
         let mean = current.reduce(0, +) / Float(current.count)
 
         // ¿Ha cambiado de golpe la luz de toda la imagen?
@@ -59,8 +67,10 @@ final class MotionAnalyzer {
         }
         previousMean = mean
 
+        // Brillo de cada celda como % del brillo medio: inmune a subidas y bajadas de ganancia.
+        let reference = max(mean, Self.minReference)
         for index in current.indices {
-            current[index] -= mean
+            current[index] = current[index] / reference * 100
         }
 
         if lightJump {
@@ -81,12 +91,18 @@ final class MotionAnalyzer {
 
         // Una celda "cambia" si difiere del fotograma anterior (movimiento rápido)
         // o del fondo (movimiento lento o algo que acaba de aparecer).
-        let limit = lumaThreshold
+        var differences = [Float](repeating: 0, count: current.count)
+        for index in current.indices {
+            differences[index] = abs(current[index] - previous[index])
+        }
+        // Ruido típico entre dos fotogramas: la mediana apenas se ve afectada por el movimiento.
+        let noise = differences.sorted()[differences.count / 2] / 0.6745
+        let limit = max(baseThreshold, Self.noiseFactor * noise)
+
         var changed = 0
         for index in current.indices {
             let againstBackground = abs(current[index] - background[index])
-            let againstPrevious = abs(current[index] - previous[index])
-            if max(againstBackground, againstPrevious) > limit {
+            if max(againstBackground, differences[index]) > limit {
                 changed += 1
             }
             background[index] += Self.backgroundRate * (current[index] - background[index])

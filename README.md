@@ -14,6 +14,21 @@ Proyecto de código abierto bajo licencia MIT.
 - [x] Fase 5: alarma con PIN (candado en la cámara, 60 s de salida y de entrada, sirena tras el aviso, armar/desarmar desde la web)
 - [x] Fase 6: previsión del tiempo (Open-Meteo), avisos de batería baja / corte de luz / calor, la cámara reduce el trabajo si el iPhone se calienta, y el `.ipa` se publica solo en la release "latest"
 
+## Diseño
+
+Un instrumento de pared que se lee de un vistazo y de noche no deslumbra: lo que se **lee** (hora,
+tiempo) es tipografía plana sobre el fondo; lo que se **toca** (luces, candado) son objetos que brillan
+con el color real de la luz. El rojo se reserva a la alarma y el ámbar (la luz cálida) es el único acento.
+La paleta, la tipografía y los radios están en `PanelCasero/Theme.swift` y en las variables de `style.css`.
+
+## Pantalla y brillo
+
+- **Orientación fija** (Ajustes → Pantalla): horizontal por defecto. Girar el móvil con la cámara en marcha
+  es lo más pesado que puede hacer la app; en automático sigue funcionando, pero conviene fijarla.
+- **Oscurecer en reposo**: capa de oscurecimiento por software por debajo del mínimo de iOS.
+- Desactiva el **brillo automático** de iOS (Ajustes › Accesibilidad › Pantalla y tamaño del texto): si
+  está activo iOS cambia el brillo por su cuenta. Ajustes muestra el brillo pedido y el real.
+
 ## Instalar o actualizar la app en el iPhone
 
 Cada vez que se sube código a `main`, el `.ipa` se publica solo en la release **latest**.

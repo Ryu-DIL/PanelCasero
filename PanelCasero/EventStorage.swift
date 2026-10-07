@@ -69,6 +69,15 @@ enum EventStorage {
         saveEvent(event)
     }
 
+    /// Si el servidor lleva mucho tiempo sin responder, se descartan los eventos más antiguos.
+    static func trim(maxEvents: Int) {
+        let events = list().filter { $0.held != true }
+        guard events.count > maxEvents else { return }
+        for event in events.prefix(events.count - maxEvents) {
+            remove(event.id)
+        }
+    }
+
     static func remove(_ id: String) {
         lock.lock()
         defer { lock.unlock() }

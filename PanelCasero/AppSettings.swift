@@ -43,6 +43,8 @@ final class AppSettings: ObservableObject {
     private static let pinLengthKey = "alarmPINLength"
     private static let sirenKey = "sirenSeconds"
     private static let weatherCityKey = "weatherCity"
+    private static let orientationKey = "orientationMode"
+    private static let idleDimKey = "idleDim"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -90,6 +92,16 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(sirenSeconds, forKey: Self.sirenKey) }
     }
 
+    /// Orientación fija de la pantalla (un panel de pared siempre está colgado igual).
+    @Published var orientationMode: OrientationMode {
+        didSet { UserDefaults.standard.set(orientationMode.rawValue, forKey: Self.orientationKey) }
+    }
+
+    /// Oscurecimiento extra cuando la pantalla está en reposo (0...0.8).
+    @Published var idleDim: Double {
+        didSet { UserDefaults.standard.set(idleDim, forKey: Self.idleDimKey) }
+    }
+
     /// Ciudad de la previsión del tiempo.
     @Published var weatherCity: String {
         didSet { UserDefaults.standard.set(weatherCity, forKey: Self.weatherCityKey) }
@@ -112,6 +124,8 @@ final class AppSettings: ObservableObject {
         let savedSensitivity = defaults.integer(forKey: Self.sensitivityKey)
         motionSensitivity = savedSensitivity == 0 ? 5 : min(10, max(1, savedSensitivity))
         lightChangeIsMotion = defaults.bool(forKey: Self.lightChangeKey)
+        orientationMode = OrientationMode(rawValue: defaults.string(forKey: Self.orientationKey) ?? "") ?? .landscape
+        idleDim = defaults.object(forKey: Self.idleDimKey) == nil ? 0.4 : min(0.8, max(0, defaults.double(forKey: Self.idleDimKey)))
         weatherCity = defaults.string(forKey: Self.weatherCityKey) ?? "Mislata"
         alarmPINHash = defaults.string(forKey: Self.pinHashKey) ?? ""
         alarmPINSalt = defaults.string(forKey: Self.pinSaltKey) ?? ""

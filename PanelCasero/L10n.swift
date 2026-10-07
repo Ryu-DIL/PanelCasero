@@ -74,6 +74,19 @@ enum L10n {
         "siren": ["es": "Sirena tras la alerta", "ca": "Sirena després de l'alerta", "en": "Siren after the alert", "de": "Sirene nach dem Alarm"],
         "siren_off": ["es": "Apagada", "ca": "Apagada", "en": "Off", "de": "Aus"],
         "city": ["es": "Ciudad", "ca": "Ciutat", "en": "City", "de": "Stadt"],
+        "orientation": ["es": "Orientación", "ca": "Orientació", "en": "Orientation", "de": "Ausrichtung"],
+        "orientation_landscape": ["es": "Horizontal", "ca": "Horitzontal", "en": "Landscape", "de": "Querformat"],
+        "orientation_portrait": ["es": "Vertical", "ca": "Vertical", "en": "Portrait", "de": "Hochformat"],
+        "orientation_auto": ["es": "Automática", "ca": "Automàtica", "en": "Automatic", "de": "Automatisch"],
+        "idle_dim": ["es": "Oscurecer en reposo", "ca": "Enfosquir en repòs", "en": "Dim when idle", "de": "Im Ruhezustand abdunkeln"],
+        "brightness_now": ["es": "Brillo ahora", "ca": "Brillantor ara", "en": "Brightness now", "de": "Helligkeit jetzt"],
+        "reason_idle": ["es": "en reposo", "ca": "en repòs", "en": "idle", "de": "Ruhe"],
+        "reason_motion": ["es": "movimiento", "ca": "moviment", "en": "motion", "de": "Bewegung"],
+        "reason_touch": ["es": "toque", "ca": "toc", "en": "touch", "de": "Berührung"],
+        "auto_brightness_hint": ["es": "iOS está cambiando el brillo por su cuenta. Desactiva el brillo automático: Ajustes › Accesibilidad › Pantalla y tamaño del texto › Brillo automático.", "ca": "iOS està canviant la brillantor pel seu compte. Desactiva la brillantor automàtica: Ajustos › Accessibilitat › Pantalla i mida del text › Brillantor automàtica.", "en": "iOS is changing the brightness on its own. Turn off Auto-Brightness: Settings › Accessibility › Display & Text Size › Auto-Brightness.", "de": "iOS ändert die Helligkeit selbst. Schalte die automatische Helligkeit aus: Einstellungen › Bedienungshilfen › Anzeige & Textgröße › Auto-Helligkeit."],
+        "alarm_on": ["es": "Armada", "ca": "Armada", "en": "Armed", "de": "Scharf"],
+        "alarm_off": ["es": "Desarmada", "ca": "Desarmada", "en": "Disarmed", "de": "Unscharf"],
+        "display_section": ["es": "Pantalla", "ca": "Pantalla", "en": "Display", "de": "Anzeige"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

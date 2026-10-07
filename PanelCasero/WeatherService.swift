@@ -89,7 +89,9 @@ final class WeatherService: ObservableObject {
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                try? await Task.sleep(nanoseconds: 30 * 60 * 1_000_000_000)
+                // Sin datos todavía (sin internet, por ejemplo): se reintenta a los 3 minutos.
+                let hasData = self?.forecast != nil
+                try? await Task.sleep(nanoseconds: (hasData ? 30 * 60 : 3 * 60) * 1_000_000_000)
             }
         }
     }

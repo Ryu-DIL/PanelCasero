@@ -35,7 +35,7 @@ final class LightsStore: ObservableObject {
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: 8_000_000_000)
             }
         }
     }
@@ -52,13 +52,17 @@ final class LightsStore: ObservableObject {
         }
         do {
             let list = try await client.fetchAll()
-            status = .connected
+            if status != .connected { status = .connected }
+            let present = Set(list.map { $0.id })
+            for id in Array(lights.keys) where !present.contains(id) {
+                lights[id] = nil          // el servidor ya no la conoce
+            }
             for light in list where !isBusy(light.id) {
                 if let old = lights[light.id], visiblyChanged(old, light) {
                     // Alguien (Alexa, la app de Tuya...) ha cambiado la luz.
                     MotionGuard.shared.suppress(for: 5)
                 }
-                lights[light.id] = light
+                if lights[light.id] != light { lights[light.id] = light }
             }
         } catch LightsError.unauthorized {
             status = .unauthorized

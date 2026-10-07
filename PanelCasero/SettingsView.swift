@@ -9,6 +9,8 @@ struct SettingsView: View {
     @EnvironmentObject var alarm: AlarmController
     @EnvironmentObject var weather: WeatherService
     @Environment(\.presentationMode) private var presentationMode
+    @ObservedObject private var dim = DimState.shared
+    @ObservedObject private var meter = MotionMeter.shared
 
     @State private var unlocked = false
     @State private var testResult: String? = nil
@@ -37,6 +39,7 @@ struct SettingsView: View {
             }
         }
         .navigationViewStyle(.stack)
+        .accentColor(Theme.lamp)
     }
 
     // MARK: - Puerta con PIN
@@ -54,6 +57,7 @@ struct SettingsView: View {
                        })
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background.ignoresSafeArea())
     }
 
     // MARK: - Formulario
@@ -81,6 +85,36 @@ struct SettingsView: View {
                             }
                         }
                     }
+                }
+            }
+
+            Section(header: Text(settings.t("display_section"))) {
+                Picker(settings.t("orientation"), selection: $settings.orientationMode) {
+                    Text(settings.t("orientation_landscape")).tag(OrientationMode.landscape)
+                    Text(settings.t("orientation_portrait")).tag(OrientationMode.portrait)
+                    Text(settings.t("orientation_auto")).tag(OrientationMode.auto)
+                }
+                .pickerStyle(.segmented)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(settings.t("idle_dim"))
+                        Spacer()
+                        Text("\(Int((settings.idleDim * 100).rounded())) %")
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: $settings.idleDim, in: 0...0.8, step: 0.05)
+                }
+                HStack {
+                    Text(settings.t("brightness_now"))
+                    Spacer()
+                    Text("\(Int((dim.target * 100).rounded())) % → \(Int((dim.actual * 100).rounded())) % · \(reasonText)")
+                        .foregroundColor(.secondary)
+                        .font(.footnote)
+                }
+                if dim.systemOverride {
+                    Text(settings.t("auto_brightness_hint"))
+                        .font(.footnote)
+                        .foregroundColor(Theme.signal)
                 }
             }
 
@@ -170,7 +204,7 @@ struct SettingsView: View {
                             .fill(camera.motionActive ? Color.red : Color.gray.opacity(0.4))
                             .frame(width: 10, height: 10)
                     }
-                    ProgressView(value: camera.motionScore)
+                    ProgressView(value: meter.score)
                 }
                 Toggle(settings.t("light_change_motion"), isOn: $settings.lightChangeIsMotion)
                 Button(settings.t("send_test_event")) {
@@ -210,6 +244,14 @@ struct SettingsView: View {
         newPIN = ""
         repeatPIN = ""
         pinMessage = settings.t("pin_saved")
+    }
+
+    private var reasonText: String {
+        switch dim.reason {
+        case .idle: return settings.t("reason_idle")
+        case .motion: return settings.t("reason_motion")
+        case .touch: return settings.t("reason_touch")
+        }
     }
 
     private var linkText: String {

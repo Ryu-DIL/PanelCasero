@@ -110,10 +110,13 @@ final class StreamServer {
 
     private func accept(_ connection: NWConnection) {
         connection.start(queue: queue)
-        receiveRequest(connection, buffer: Data())
+        // Una conexión que no termina de pedir nada se cierra, para no acumular conexiones muertas.
+        let timeout = DispatchWorkItem { [weak connection] in connection?.cancel() }
+        queue.asyncAfter(deadline: .now() + 10, execute: timeout)
+        receiveRequest(connection, buffer: Data(), timeout: timeout)
     }
 
-    private func receiveRequest(_ connection: NWConnection, buffer: Data) {
+    private func receiveRequest(_ connection: NWConnection, buffer: Data, timeout: DispatchWorkItem) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { [weak self] data, _, isComplete, error in
             guard let self = self else { return }
             var received = buffer
@@ -121,12 +124,14 @@ final class StreamServer {
                 received.append(data)
             }
             if let end = received.range(of: Data("\r\n\r\n".utf8)) {
+                timeout.cancel()
                 let head = String(decoding: received[..<end.lowerBound], as: UTF8.self)
                 self.respond(to: connection, head: head)
             } else if error != nil || isComplete || received.count > 8192 {
+                timeout.cancel()
                 connection.cancel()
             } else {
-                self.receiveRequest(connection, buffer: received)
+                self.receiveRequest(connection, buffer: received, timeout: timeout)
             }
         }
     }

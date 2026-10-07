@@ -23,7 +23,8 @@ const I18N = {
     arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La cámara no responde.',
     kind_alert_pin: 'PIN incorrecto en el panel',
     kind_battery_low: 'Batería baja', kind_power_lost: 'Sin carga (¿corte de luz?)',
-    kind_power_restored: 'Vuelve a cargar', kind_hot: 'iPhone muy caliente'
+    kind_power_restored: 'Vuelve a cargar', kind_hot: 'iPhone muy caliente',
+    today: 'Hoy', yesterday: 'Ayer'
   },
   ca: {
     enter_pin: 'Introdueix el PIN', wrong_pin: 'PIN incorrecte', locked: 'Massa intents. Espera {m} min.',
@@ -46,7 +47,8 @@ const I18N = {
     arm: 'Armar', disarm: 'Desarmar', alarm_error: 'La càmera no respon.',
     kind_alert_pin: 'PIN incorrecte al panell',
     kind_battery_low: 'Bateria baixa', kind_power_lost: 'Sense càrrega (tall de llum?)',
-    kind_power_restored: 'Torna a carregar', kind_hot: 'iPhone molt calent'
+    kind_power_restored: 'Torna a carregar', kind_hot: 'iPhone molt calent',
+    today: 'Hui', yesterday: 'Ahir'
   },
   en: {
     enter_pin: 'Enter the PIN', wrong_pin: 'Wrong PIN', locked: 'Too many attempts. Wait {m} min.',
@@ -69,7 +71,8 @@ const I18N = {
     arm: 'Arm', disarm: 'Disarm', alarm_error: 'The camera is not responding.',
     kind_alert_pin: 'Wrong PIN on the panel',
     kind_battery_low: 'Low battery', kind_power_lost: 'Not charging (power cut?)',
-    kind_power_restored: 'Charging again', kind_hot: 'iPhone very hot'
+    kind_power_restored: 'Charging again', kind_hot: 'iPhone very hot',
+    today: 'Today', yesterday: 'Yesterday'
   },
   de: {
     enter_pin: 'PIN eingeben', wrong_pin: 'Falsche PIN', locked: 'Zu viele Versuche. Warte {m} Min.',
@@ -92,7 +95,8 @@ const I18N = {
     arm: 'Scharf stellen', disarm: 'Unscharf stellen', alarm_error: 'Die Kamera antwortet nicht.',
     kind_alert_pin: 'Falsche PIN am Panel',
     kind_battery_low: 'Akku schwach', kind_power_lost: 'Lädt nicht (Stromausfall?)',
-    kind_power_restored: 'Lädt wieder', kind_hot: 'iPhone sehr heiß'
+    kind_power_restored: 'Lädt wieder', kind_hot: 'iPhone sehr heiß',
+    today: 'Heute', yesterday: 'Gestern'
   }
 };
 const LOCALES = { es: 'es-ES', ca: 'ca-ES', en: 'en-GB', de: 'de-DE' };
@@ -114,7 +118,6 @@ function detectLang() {
 function applyI18n() {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
-  document.querySelectorAll('#nav button').forEach((b) => { b.textContent = t('tab_' + b.dataset.tab); });
   $('langSelect').value = lang;
 }
 
@@ -122,6 +125,28 @@ function formatDate(seconds) {
   return new Date(seconds * 1000).toLocaleString(LOCALES[lang] || 'es-ES', {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+}
+
+function formatTime(seconds) {
+  return new Date(seconds * 1000).toLocaleTimeString(LOCALES[lang] || 'es-ES', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+}
+
+function dayKey(seconds) {
+  const d = new Date(seconds * 1000);
+  return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+
+function dayLabel(seconds) {
+  const now = new Date();
+  if (dayKey(seconds) === dayKey(now.getTime() / 1000)) return t('today');
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (dayKey(seconds) === dayKey(yesterday.getTime() / 1000)) return t('yesterday');
+  return new Date(seconds * 1000).toLocaleDateString(LOCALES[lang] || 'es-ES', {
+    day: '2-digit', month: '2-digit', year: '2-digit'
   });
 }
 
@@ -214,9 +239,13 @@ function showApp() {
 function selectTab(name) {
   currentTab = name;
   ['live', 'events', 'settings'].forEach((tab) => { $('tab-' + tab).hidden = tab !== name; });
-  document.querySelectorAll('#nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('#nav button').forEach((b) => {
+    const active = b.dataset.tab === name;
+    b.classList.toggle('active', active);
+    if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
   if (name === 'live') startLive(); else stopLive();
-  if (name === 'events') loadEvents(true);
+  if (name === 'events') { loadEvents(true); startEventsPolling(); } else { stopEventsPolling(); }
   if (name === 'settings') refreshPushState();
 }
 
@@ -255,21 +284,28 @@ let alarmCameraOnline = false;
 let alarmBusy = false;
 
 function renderAlarm(errorText) {
-  const label = $('alarmState');
+  const word = $('alarmState');
+  const hint = $('alarmHint');
   const button = $('alarmBtn');
-  if (errorText) { label.textContent = errorText; return; }
+  const box = $('alarm');
+  if (errorText) { hint.textContent = errorText; return; }
+  hint.textContent = '';
   if (!alarmCameraOnline || !alarmState) {
-    label.textContent = t('alarm_unknown');
+    box.classList.remove('armed');
+    word.textContent = t('alarm_unknown');
     button.disabled = true;
     button.textContent = t('arm');
+    button.className = 'btn wide primary';
     return;
   }
-  label.textContent = t('alarm_' + alarmState);
-  button.disabled = alarmBusy;
+  // "entry" es una alarma armada que está esperando el PIN en el panel.
+  word.textContent = t(alarmState === 'entry' ? 'alarm_armed' : 'alarm_' + alarmState);
+  if (alarmState === 'entry') hint.textContent = t('alarm_entry');
   const armed = alarmState !== 'disarmed';
+  box.classList.toggle('armed', armed);
+  button.disabled = alarmBusy;
   button.textContent = armed ? t('disarm') : t('arm');
-  button.classList.toggle('danger', armed);
-  button.classList.toggle('primary', !armed);
+  button.className = 'btn wide ' + (armed ? 'danger' : 'primary');
 }
 
 async function toggleAlarm() {
@@ -307,14 +343,29 @@ async function refreshStatus() {
     const res = await api('/api/status');
     const cam = (await res.json()).camera;
     const badge = $('camState');
-    badge.className = 'badge ' + (!cam.known ? '' : cam.online ? 'ok' : 'bad');
-    let text = !cam.known ? t('cam_unknown') : cam.online ? t('cam_online') : t('cam_offline');
-    if (cam.online && typeof cam.battery === 'number') text += ' · ' + Math.round(cam.battery * 100) + '%' + (cam.charging ? '⚡' : '');
-    if (cam.online && (cam.thermal === 'serious' || cam.thermal === 'critical')) text += ' 🌡️';
+    badge.className = 'status ' + (!cam.known ? '' : cam.online ? 'ok' : 'bad');
     badge.innerHTML = '<i></i>';
-    badge.appendChild(document.createTextNode(text));
+    badge.appendChild(document.createTextNode(!cam.known ? t('cam_unknown') : cam.online ? t('cam_online') : t('cam_offline')));
+
+    // Batería y calor, sobre la imagen.
+    const chips = $('liveChips');
+    chips.innerHTML = '';
+    if (cam.online && typeof cam.battery === 'number') {
+      const chip = document.createElement('span');
+      chip.textContent = Math.round(cam.battery * 100) + '%' + (cam.charging ? ' ⚡' : '');
+      chips.appendChild(chip);
+    }
+    if (cam.online && (cam.thermal === 'serious' || cam.thermal === 'critical')) {
+      const chip = document.createElement('span');
+      chip.textContent = '🌡️';
+      chips.appendChild(chip);
+    }
+
     alarmCameraOnline = cam.known && cam.online;
-    if (!alarmBusy) { alarmState = cam.alarm || (cam.armed === true ? 'armed' : cam.armed === false ? 'disarmed' : null); renderAlarm(); }
+    if (!alarmBusy) {
+      alarmState = cam.alarm || (cam.armed === true ? 'armed' : cam.armed === false ? 'disarmed' : null);
+      renderAlarm();
+    }
   } catch (e) { /* sin datos */ }
 }
 
@@ -324,19 +375,50 @@ function eventLabel(event) {
   return t('kind_' + event.kind);
 }
 
+const TONES = { alert: 'bad', offline: 'warn', battery_low: 'warn', power_lost: 'warn', hot: 'warn',
+  recovered: 'ok', power_restored: 'ok' };
+
 let events = [];
 let reachedEnd = false;
+let lastDay = null;
+let eventsTimer = null;
 
 async function loadEvents(reset) {
-  if (reset) { events = []; reachedEnd = false; $('events').innerHTML = ''; }
+  if (reset) { events = []; reachedEnd = false; lastDay = null; $('events').innerHTML = ''; }
   const before = events.length ? '&before=' + events[events.length - 1].created : '';
   const res = await api('/api/events?limit=30' + before);
   const batch = await res.json();
   if (batch.length < 30) reachedEnd = true;
-  batch.forEach((event) => { events.push(event); $('events').appendChild(renderEvent(event)); });
+  batch.forEach((event) => {
+    const key = dayKey(event.created);
+    if (key !== lastDay) {
+      lastDay = key;
+      const header = document.createElement('h3');
+      header.className = 'day';
+      header.textContent = dayLabel(event.created);
+      $('events').appendChild(header);
+    }
+    events.push(event);
+    $('events').appendChild(renderEvent(event));
+  });
   $('noEvents').hidden = events.length > 0;
   $('more').hidden = reachedEnd || events.length === 0;
 }
+
+// Mientras se mira la lista, se comprueba si ha llegado algún evento nuevo.
+function startEventsPolling() {
+  stopEventsPolling();
+  eventsTimer = setInterval(async () => {
+    if (document.hidden || currentTab !== 'events' || !$('viewer').hidden) return;
+    try {
+      const res = await api('/api/events?limit=1');
+      const latest = (await res.json())[0];
+      if (latest && (!events.length || latest.id !== events[0].id)) loadEvents(true);
+    } catch (e) { /* sin datos */ }
+  }, 20000);
+}
+
+function stopEventsPolling() { clearInterval(eventsTimer); }
 
 function renderEvent(event) {
   const button = document.createElement('button');
@@ -346,6 +428,7 @@ function renderEvent(event) {
   if (event.photo) {
     thumb = document.createElement('img');
     thumb.loading = 'lazy';
+    thumb.alt = '';
     thumb.src = '/api/events/' + event.id + '/photo';
   } else {
     thumb = document.createElement('div');
@@ -353,12 +436,17 @@ function renderEvent(event) {
     thumb.textContent = ({ offline: '📡', battery_low: '🔋', power_lost: '⚡', hot: '🌡️' })[event.kind] || '✔';
   }
   const text = document.createElement('div');
-  const title = document.createElement('b');
-  title.textContent = eventLabel(event) + (event.clip ? ' 🎬' : '');
-  const date = document.createElement('small');
-  date.textContent = formatDate(event.created);
-  text.appendChild(title);
-  text.appendChild(date);
+  const when = document.createElement('span');
+  when.className = 'when';
+  when.textContent = formatTime(event.created);
+  const what = document.createElement('span');
+  what.className = 'what';
+  const dot = document.createElement('i');
+  dot.className = 'dot ' + (TONES[event.kind] || '');
+  what.appendChild(dot);
+  what.appendChild(document.createTextNode(eventLabel(event) + (event.clip ? ' · ▶' : '')));
+  text.appendChild(when);
+  text.appendChild(what);
   button.appendChild(thumb);
   button.appendChild(text);
   button.addEventListener('click', () => openViewer(event));
@@ -367,6 +455,30 @@ function renderEvent(event) {
 
 /* ---------- Visor de un evento ---------- */
 let viewing = null;
+
+let clipPoll = null;
+
+// El clip llega unos segundos después de la foto: se comprueba hasta que aparezca.
+function watchForClip(event) {
+  clearInterval(clipPoll);
+  if (event.clip || !event.photo || event.kind !== 'alert') return;
+  const started = Date.now();
+  clipPoll = setInterval(async () => {
+    if (!viewing || viewing.id !== event.id || Date.now() - started > 180000) { clearInterval(clipPoll); return; }
+    try {
+      const res = await api('/api/events/' + event.id);
+      if (!res.ok) return;
+      const fresh = await res.json();
+      if (fresh.clip) {
+        clearInterval(clipPoll);
+        viewing = fresh;
+        $('viewerVideo').src = '/api/events/' + fresh.id + '/clip';
+        $('viewerVideo').hidden = false;
+        $('viewerNote').hidden = true;
+      }
+    } catch (e) { /* se reintenta */ }
+  }, 5000);
+}
 
 function openViewer(event) {
   viewing = event;
@@ -382,9 +494,11 @@ function openViewer(event) {
   if (event.clip) video.src = '/api/events/' + event.id + '/clip'; else video.removeAttribute('src');
   $('viewer').hidden = false;
   location.hash = 'event=' + event.id;
+  watchForClip(event);
 }
 
 function closeViewer() {
+  clearInterval(clipPoll);
   $('viewer').hidden = true;
   $('viewerVideo').pause();
   $('viewerVideo').removeAttribute('src');
@@ -430,7 +544,8 @@ async function refreshPushState() {
     return;
   }
   if (Notification.permission === 'denied') { state.textContent = t('push_blocked'); return; }
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await Promise.race([navigator.serviceWorker.ready, new Promise((resolve) => setTimeout(resolve, 4000))]);
+  if (!reg) { state.textContent = t('push_unsupported'); return; }
   const sub = await reg.pushManager.getSubscription();
   if (sub && Notification.permission === 'granted') {
     state.textContent = t('push_on');
