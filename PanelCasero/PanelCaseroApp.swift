@@ -53,17 +53,23 @@ struct PanelCaseroApp: App {
                 .onChange(of: settings.orientationMode) { mode in
                     OrientationLock.apply(mode)
                 }
-                .onChange(of: settings.idleDim) { value in
-                    BrightnessController.shared.idleOverlay = value
+                .onChange(of: settings.brightnessSignature) { _ in
+                    applyBrightnessSettings()
                 }
         }
         .onChange(of: scenePhase) { phase in
             // "inactive" ocurre con avisos del sistema o al abrir el centro de control:
             // la cámara y la alarma no deben pararse por eso.
             switch phase {
-            case .active: resume()
-            case .background: pause()
-            default: break
+            case .active:
+                BrightnessController.shared.sceneActive = true
+                resume()
+            case .inactive:
+                BrightnessController.shared.sceneActive = false
+            case .background:
+                pause()
+            @unknown default:
+                break
             }
         }
     }
@@ -75,7 +81,7 @@ struct PanelCaseroApp: App {
         UIApplication.shared.isIdleTimerDisabled = true
         TouchWatcher.install()
         OrientationLock.apply(settings.orientationMode)
-        BrightnessController.shared.idleOverlay = settings.idleDim
+        applyBrightnessSettings()
 
         let link = self.link
         let alarm = self.alarm
@@ -94,6 +100,17 @@ struct PanelCaseroApp: App {
         camera.setLightChangeCountsAsMotion(settings.lightChangeIsMotion)
         StreamServer.shared.setToken(settings.serverToken)
         resume()
+    }
+
+    @MainActor
+    private func applyBrightnessSettings() {
+        let controller = BrightnessController.shared
+        controller.automaticEnabled = settings.autoBrightness
+        controller.motionLevel = CGFloat(settings.motionBrightness)
+        controller.idleSeconds = settings.idleSeconds
+        controller.touchSeconds = settings.touchSeconds
+        controller.idleOverlay = settings.idleDim
+        controller.settingsChanged()
     }
 
     @MainActor

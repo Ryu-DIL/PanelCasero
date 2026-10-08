@@ -95,6 +95,36 @@ struct SettingsView: View {
                     Text(settings.t("orientation_auto")).tag(OrientationMode.auto)
                 }
                 .pickerStyle(.segmented)
+                Toggle(settings.t("auto_panel_brightness"), isOn: $settings.autoBrightness)
+                if settings.autoBrightness {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(settings.t("motion_level"))
+                            Spacer()
+                            Text("\(Int((settings.motionBrightness * 100).rounded())) %")
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $settings.motionBrightness, in: 0.1...1, step: 0.05)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(settings.t("idle_after"))
+                            Spacer()
+                            Text("\(Int(settings.idleSeconds)) s")
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $settings.idleSeconds, in: 15...300, step: 15)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(settings.t("touch_for"))
+                            Spacer()
+                            Text("\(Int(settings.touchSeconds)) s")
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: $settings.touchSeconds, in: 5...60, step: 5)
+                    }
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(settings.t("idle_dim"))
@@ -110,6 +140,14 @@ struct SettingsView: View {
                     Text("\(Int((dim.target * 100).rounded())) % → \(Int((dim.actual * 100).rounded())) % · \(reasonText)")
                         .foregroundColor(.secondary)
                         .font(.footnote)
+                }
+                if dim.reason == .manual {
+                    Text(settings.t("manual_note"))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                    Button(settings.t("resume_auto")) {
+                        BrightnessController.shared.resumeAutomatic()
+                    }
                 }
                 if dim.systemOverride {
                     Text(settings.t("auto_brightness_hint"))
@@ -251,6 +289,8 @@ struct SettingsView: View {
         case .idle: return settings.t("reason_idle")
         case .motion: return settings.t("reason_motion")
         case .touch: return settings.t("reason_touch")
+        case .manual: return settings.t("reason_manual")
+        case .off: return settings.t("reason_off")
         }
     }
 

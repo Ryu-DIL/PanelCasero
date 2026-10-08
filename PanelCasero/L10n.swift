@@ -87,6 +87,14 @@ enum L10n {
         "alarm_on": ["es": "Armada", "ca": "Armada", "en": "Armed", "de": "Scharf"],
         "alarm_off": ["es": "Desarmada", "ca": "Desarmada", "en": "Disarmed", "de": "Unscharf"],
         "display_section": ["es": "Pantalla", "ca": "Pantalla", "en": "Display", "de": "Anzeige"],
+        "auto_panel_brightness": ["es": "Brillo automático del panel", "ca": "Brillantor automàtica del panell", "en": "Automatic panel brightness", "de": "Automatische Panel-Helligkeit"],
+        "motion_level": ["es": "Brillo con movimiento", "ca": "Brillantor amb moviment", "en": "Brightness on motion", "de": "Helligkeit bei Bewegung"],
+        "idle_after": ["es": "Pasar a reposo tras", "ca": "Passar a repòs després de", "en": "Go idle after", "de": "Ruhezustand nach"],
+        "touch_for": ["es": "Brillo máximo al tocar durante", "ca": "Brillantor màxima en tocar durant", "en": "Full brightness after touch for", "de": "Volle Helligkeit nach Berührung für"],
+        "manual_note": ["es": "Has cambiado el brillo a mano: la app lo respeta unos minutos.", "ca": "Has canviat la brillantor a mà: l'app ho respecta uns minuts.", "en": "You changed the brightness by hand: the app respects it for a few minutes.", "de": "Du hast die Helligkeit von Hand geändert: die App respektiert das einige Minuten."],
+        "resume_auto": ["es": "Volver al automático", "ca": "Tornar a l'automàtic", "en": "Back to automatic", "de": "Zurück zu automatisch"],
+        "reason_manual": ["es": "manual", "ca": "manual", "en": "manual", "de": "manuell"],
+        "reason_off": ["es": "desactivado", "ca": "desactivat", "en": "off", "de": "aus"],
         "coming_soon":   ["es": "Próximamente", "ca": "Pròximament", "en": "Coming soon", "de": "Demnächst"]
     ]
 }

@@ -45,6 +45,10 @@ final class AppSettings: ObservableObject {
     private static let weatherCityKey = "weatherCity"
     private static let orientationKey = "orientationMode"
     private static let idleDimKey = "idleDim"
+    private static let autoBrightnessKey = "autoBrightness"
+    private static let motionBrightnessKey = "motionBrightness"
+    private static let idleSecondsKey = "idleSeconds"
+    private static let touchSecondsKey = "touchSeconds"
 
     @Published var language: AppLanguage {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey) }
@@ -102,6 +106,31 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(idleDim, forKey: Self.idleDimKey) }
     }
 
+    /// Si es false, la app no toca el brillo de la pantalla.
+    @Published var autoBrightness: Bool {
+        didSet { UserDefaults.standard.set(autoBrightness, forKey: Self.autoBrightnessKey) }
+    }
+
+    /// Brillo (0.1...1) cuando hay movimiento.
+    @Published var motionBrightness: Double {
+        didSet { UserDefaults.standard.set(motionBrightness, forKey: Self.motionBrightnessKey) }
+    }
+
+    /// Segundos sin movimiento para pasar a reposo.
+    @Published var idleSeconds: Double {
+        didSet { UserDefaults.standard.set(idleSeconds, forKey: Self.idleSecondsKey) }
+    }
+
+    /// Segundos que se mantiene el brillo máximo tras tocar.
+    @Published var touchSeconds: Double {
+        didSet { UserDefaults.standard.set(touchSeconds, forKey: Self.touchSecondsKey) }
+    }
+
+    /// Cambia cuando cualquier ajuste de brillo cambia (para reaplicarlos).
+    var brightnessSignature: [Double] {
+        [autoBrightness ? 1 : 0, motionBrightness, idleSeconds, touchSeconds, idleDim]
+    }
+
     /// Ciudad de la previsión del tiempo.
     @Published var weatherCity: String {
         didSet { UserDefaults.standard.set(weatherCity, forKey: Self.weatherCityKey) }
@@ -126,6 +155,10 @@ final class AppSettings: ObservableObject {
         lightChangeIsMotion = defaults.bool(forKey: Self.lightChangeKey)
         orientationMode = OrientationMode(rawValue: defaults.string(forKey: Self.orientationKey) ?? "") ?? .landscape
         idleDim = defaults.object(forKey: Self.idleDimKey) == nil ? 0.4 : min(0.8, max(0, defaults.double(forKey: Self.idleDimKey)))
+        autoBrightness = defaults.object(forKey: Self.autoBrightnessKey) == nil ? true : defaults.bool(forKey: Self.autoBrightnessKey)
+        motionBrightness = defaults.object(forKey: Self.motionBrightnessKey) == nil ? 0.4 : min(1, max(0.1, defaults.double(forKey: Self.motionBrightnessKey)))
+        idleSeconds = defaults.object(forKey: Self.idleSecondsKey) == nil ? 60 : min(300, max(15, defaults.double(forKey: Self.idleSecondsKey)))
+        touchSeconds = defaults.object(forKey: Self.touchSecondsKey) == nil ? 20 : min(60, max(5, defaults.double(forKey: Self.touchSecondsKey)))
         weatherCity = defaults.string(forKey: Self.weatherCityKey) ?? "Mislata"
         alarmPINHash = defaults.string(forKey: Self.pinHashKey) ?? ""
         alarmPINSalt = defaults.string(forKey: Self.pinSaltKey) ?? ""

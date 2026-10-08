@@ -1,19 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// Valores del brillo automático.
+/// Valores fijos del brillo (los demás se cambian en Ajustes).
 enum BrightnessConfig {
     static let minLevel: CGFloat = 0.0          // mínimo absoluto de iOS
-    static let motionLevel: CGFloat = 0.4       // al detectar movimiento
     static let maxLevel: CGFloat = 1.0          // al tocar la pantalla
-    static let idleSeconds: TimeInterval = 60   // sin movimiento -> mínimo
-    static let touchSeconds: TimeInterval = 20  // tras tocar, tiempo en máximo
     /// Tras cambiar el brillo, la cámara se ignora este rato (la imagen cambia por la propia pantalla).
     static let settleSeconds: TimeInterval = 4
+    /// Si el usuario cambia el brillo a mano (centro de control), la app lo respeta este tiempo.
+    static let manualHoldSeconds: TimeInterval = 10 * 60
 }
 
 enum BrightnessReason: String {
     case touch, motion, idle
+    case manual     // lo has cambiado tú a mano: la app no lo toca un rato
+    case off        // brillo automático del panel desactivado en Ajustes
 }
 
 /// Lo que la interfaz necesita saber del brillo. Solo se publica cuando algo cambia de verdad.
@@ -47,12 +48,21 @@ final class DimState: ObservableObject {
 final class BrightnessController {
     static let shared = BrightnessController()
 
+    // Ajustes. Solo se tocan desde el hilo principal.
+    /// false = la app no toca el brillo para nada.
+    var automaticEnabled = true
+    /// Brillo cuando hay movimiento.
+    var motionLevel: CGFloat = 0.4
+    /// Segundos sin movimiento para pasar a reposo.
+    var idleSeconds: TimeInterval = 60
+    /// Segundos que se mantiene el brillo máximo tras tocar la pantalla.
+    var touchSeconds: TimeInterval = 20
     /// Con la alarma armada, el movimiento no sube el brillo (para no avisar al intruso).
-    /// Solo se toca desde el hilo principal.
     var motionRaisesBrightness = true
-
-    /// Oscurecimiento extra en reposo (0...0.8). Solo desde el hilo principal.
+    /// Oscurecimiento extra en reposo (0...0.8).
     var idleOverlay: Double = 0.4
+    /// false mientras hay algo por encima de la app (centro de control, avisos del sistema).
+    var sceneActive = true
 
     private var lastMotion: Date = .distantPast
     private var lastTouch: Date = Date()
@@ -60,8 +70,18 @@ final class BrightnessController {
     private var currentLevel: CGFloat = -1
     private var levelSince = Date()
     private var timer: Timer?
+    private var manualUntil = Date.distantPast
+    private var lastSetLevel: CGFloat = -1
+    private var lastSetAt = Date.distantPast
+    private var observer: NSObjectProtocol?
 
-    private init() {}
+    private init() {
+        observer = NotificationCenter.default.addObserver(
+            forName: UIScreen.brightnessDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.systemBrightnessChanged()
+        }
+    }
 
     /// Empieza a controlar el brillo (se puede llamar varias veces).
     func start() {
@@ -84,6 +104,19 @@ final class BrightnessController {
             UIScreen.main.brightness = originalBrightness
         }
         currentLevel = -1
+    }
+
+    /// Vuelve a aplicar los ajustes (por ejemplo, tras cambiarlos en la pantalla de Ajustes).
+    func settingsChanged() {
+        currentLevel = -1
+        tick()
+    }
+
+    /// Cancela el respeto al brillo manual y vuelve al automático.
+    func resumeAutomatic() {
+        manualUntil = .distantPast
+        currentLevel = -1
+        tick()
     }
 
     /// Hay que llamarlo cada vez que se toca la pantalla.
@@ -111,18 +144,40 @@ final class BrightnessController {
     // MARK: - Interno
 
     private func target(now: Date) -> (level: CGFloat, reason: BrightnessReason) {
-        if now.timeIntervalSince(lastTouch) < BrightnessConfig.touchSeconds {
+        if now.timeIntervalSince(lastTouch) < touchSeconds {
             return (BrightnessConfig.maxLevel, .touch)
         }
-        if now.timeIntervalSince(lastMotion) < BrightnessConfig.idleSeconds {
-            return (BrightnessConfig.motionLevel, .motion)
+        if now.timeIntervalSince(lastMotion) < idleSeconds {
+            return (motionLevel, .motion)
         }
         return (BrightnessConfig.minLevel, .idle)
+    }
+
+    /// El usuario ha movido el brillo en el centro de control: la app deja de pelearse con él.
+    private func systemBrightnessChanged() {
+        guard timer != nil, automaticEnabled, lastSetLevel >= 0 else { return }
+        let now = Date()
+        guard now.timeIntervalSince(lastSetAt) > 1.0,
+              abs(UIScreen.main.brightness - lastSetLevel) > 0.04 else { return }
+        if !sceneActive {
+            manualUntil = now.addingTimeInterval(BrightnessConfig.manualHoldSeconds)
+            tick()
+        }
     }
 
     private func tick() {
         guard timer != nil else { return }
         let now = Date()
+
+        // Desactivado en Ajustes, o el usuario lo ha cambiado a mano: no se toca el brillo.
+        if !automaticEnabled || now < manualUntil {
+            currentLevel = -1       // al volver al automático se aplica de nuevo
+            let current = Double(UIScreen.main.brightness)
+            DimState.shared.update(overlay: 0, target: current, actual: current,
+                                   reason: automaticEnabled ? .manual : .off, systemOverride: false)
+            return
+        }
+
         let goal = target(now: now)
 
         if goal.level != currentLevel {
@@ -130,6 +185,8 @@ final class BrightnessController {
             levelSince = now
             // La pantalla ilumina la habitación: la cámara debe ignorar este cambio.
             MotionGuard.shared.suppress(for: BrightnessConfig.settleSeconds)
+            lastSetLevel = goal.level
+            lastSetAt = now
             UIScreen.main.brightness = goal.level
         }
 

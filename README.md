@@ -25,6 +25,7 @@ La paleta, la tipografía y los radios están en `PanelCasero/Theme.swift` y en 
 
 - **Orientación fija** (Ajustes → Pantalla): horizontal por defecto. Girar el móvil con la cámara en marcha
   es lo más pesado que puede hacer la app; en automático sigue funcionando, pero conviene fijarla.
+- **Brillo automático del panel** (activable): brillo con movimiento, segundos hasta el reposo y segundos de brillo máximo al tocar. Si cambias el brillo a mano en el centro de control, la app lo respeta 10 minutos.
 - **Oscurecer en reposo**: capa de oscurecimiento por software por debajo del mínimo de iOS.
 - Desactiva el **brillo automático** de iOS (Ajustes › Accesibilidad › Pantalla y tamaño del texto): si
   está activo iOS cambia el brillo por su cuenta. Ajustes muestra el brillo pedido y el real.
